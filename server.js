@@ -1073,6 +1073,7 @@ app.post('/api/parse-resume',
         success: true,
         sessionId,
         resumeData,
+        resumeText: resumeText, // Include full text for serverless compatibility
         summary: {
           experience: resumeData.experience?.totalYears || 'Not specified',
           role: resumeData.experience?.currentRole || 'Not specified',
@@ -1125,6 +1126,7 @@ app.post('/api/parse-resume-text', async (req, res) => {
       success: true,
       sessionId,
       resumeData,
+      resumeText: resumeText, // Include full text for serverless compatibility
       summary: {
         experience: resumeData.experience?.totalYears || 'Not specified',
         role: resumeData.experience?.currentRole || 'Not specified',
@@ -1144,22 +1146,30 @@ app.post('/api/parse-resume-text', async (req, res) => {
 // Endpoint: Resume-aware chat (Pro feature)
 app.post('/api/chat-with-resume', async (req, res) => {
   try {
-    const { message, sessionId, mode } = req.body;
+    const { message, sessionId, mode, resumeData, resumeText } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    if (!sessionId || !resumeDataStore.has(sessionId)) {
-      return res.status(400).json({ error: 'Invalid or expired resume session' });
+    // For serverless compatibility: Accept resume data from request body OR fallback to in-memory store
+    let actualResumeData, fullResumeText;
+    
+    if (resumeData && resumeText) {
+      // Resume data sent with request (serverless-friendly)
+      actualResumeData = resumeData;
+      fullResumeText = resumeText;
+    } else if (sessionId && resumeDataStore.has(sessionId)) {
+      // Fallback to in-memory store (local development)
+      const resumeSession = resumeDataStore.get(sessionId);
+      actualResumeData = resumeSession.data;
+      fullResumeText = resumeSession.fullText || '';
+    } else {
+      return res.status(400).json({ error: 'Resume data is required. Please upload your resume again.' });
     }
 
     // Extract clientId for Windows app sync
     const clientId = req.query.clientId || req.headers['x-client-id'];
-
-    const resumeSession = resumeDataStore.get(sessionId);
-    const resumeData = resumeSession.data;
-    const fullResumeText = resumeSession.fullText || '';
 
     // Broadcast user message to Windows app
     if (clientId) {
@@ -1174,19 +1184,19 @@ app.post('/api/chat-with-resume', async (req, res) => {
     const systemPrompt = `You are a helpful interview coach assistant. You're helping a candidate prepare for interviews by answering questions based on their actual resume and experience.
 
 CANDIDATE PROFILE:
-- Experience: ${resumeData.experience?.totalYears || 'Not specified'} years
-- Current Role: ${resumeData.experience?.currentRole || 'Not specified'}
+- Experience: ${actualResumeData.experience?.totalYears || 'Not specified'} years
+- Current Role: ${actualResumeData.experience?.currentRole || 'Not specified'}
 - Key Technologies: ${[
-  ...(resumeData.technologies?.languages || []),
-  ...(resumeData.technologies?.frameworks || []),
-  ...(resumeData.technologies?.tools || [])
+  ...(actualResumeData.technologies?.languages || []),
+  ...(actualResumeData.technologies?.frameworks || []),
+  ...(actualResumeData.technologies?.tools || [])
 ].slice(0, 10).join(', ')}
-- Domain Experience: ${(resumeData.domain || []).join(', ')}
-- Education: ${(resumeData.education?.degrees || []).join(', ')}
-- Certifications: ${(resumeData.education?.certifications || []).join(', ')}
+- Domain Experience: ${(actualResumeData.domain || []).join(', ')}
+- Education: ${(actualResumeData.education?.degrees || []).join(', ')}
+- Certifications: ${(actualResumeData.education?.certifications || []).join(', ')}
 
 KEY PROJECTS:
-${(resumeData.projects || []).slice(0, 3).map(p => 
+${(actualResumeData.projects || []).slice(0, 3).map(p => 
   `- ${p.name}: ${p.description} (${(p.technologies || []).join(', ')})`
 ).join('\n')}
 

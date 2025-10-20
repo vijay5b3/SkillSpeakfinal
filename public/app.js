@@ -1676,6 +1676,7 @@ window.downloadQuestionsAndAnswers = downloadQuestionsAndAnswers;
 
 let practiceSessionId = null;
 let practiceResumeData = null;
+let practiceResumeText = null; // Store full resume text for serverless requests
 let practiceMode = 'detailed';
 let practiceMessages = [];
 let currentInputMethod = 'upload'; // 'upload' or 'paste'
@@ -1886,6 +1887,7 @@ async function submitResumeText() {
     const result = await response.json();
     practiceSessionId = result.sessionId;
     practiceResumeData = result.resumeData;
+    practiceResumeText = resumeText; // Store the full resume text for serverless requests
     
     // Update UI
     document.getElementById('practice-resume-upload').style.display = 'none';
@@ -1953,6 +1955,7 @@ async function uploadPracticeResume() {
     const result = await response.json();
     practiceSessionId = result.sessionId;
     practiceResumeData = result.resumeData;
+    practiceResumeText = result.resumeText; // Store the full resume text for serverless requests
     
     // Update UI
     document.getElementById('practice-resume-upload').style.display = 'none';
@@ -2030,7 +2033,9 @@ async function sendPracticeMessage() {
       body: JSON.stringify({
         message: message,
         sessionId: practiceSessionId,
-        mode: practiceMode
+        mode: practiceMode,
+        resumeData: practiceResumeData, // Send resume data for serverless compatibility
+        resumeText: practiceResumeText  // Send full resume text for serverless compatibility
       })
     });
     

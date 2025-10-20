@@ -10,6 +10,11 @@
         margin: 0;
         padding: 0;
       }
+      
+      html {
+        overflow-x: hidden;
+        width: 100%;
+      }
 
       body { 
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -18,7 +23,9 @@
         display: flex;
         flex-direction: column;
         height: 100vh;
-        overflow: hidden;
+        width: 100%;
+        overflow-x: hidden;
+        overflow-y: hidden;
         /* Gradient background with transparency */
         background: linear-gradient(135deg, 
           rgba(102, 126, 234, 0.1) 0%,
@@ -483,29 +490,141 @@
         background: rgba(226, 232, 240, 1);
       }
 
-      /* Mobile responsive */
+      /* Mobile responsive - Improved for better UX */
       @media (max-width: 768px) {
+        * {
+          max-width: 100vw; /* Prevent any element from causing horizontal scroll */
+        }
+        
+        body {
+          height: 100dvh; /* Use dynamic viewport height for mobile */
+          overflow-x: hidden;
+          width: 100%;
+        }
+        
+        #header {
+          padding: 10px 12px;
+        }
+        
         #header h1 {
-          font-size: 20px;
+          font-size: 16px;
         }
 
         #header p {
+          font-size: 11px;
+        }
+
+        /* Navigation dropdown for mobile */
+        .nav-tabs {
+          position: relative;
+          flex-direction: column;
+          padding: 0;
+          width: 100%;
+          overflow: visible;
+        }
+        
+        /* Hide all non-active tabs by default on mobile */
+        .nav-tab {
+          width: 100%;
+          padding: 12px 16px;
+          font-size: 13px;
+          white-space: nowrap;
+          background: white;
+          border-bottom: 1px solid #e0e0e0;
+          justify-content: flex-start;
+          gap: 10px;
+          text-align: left;
+          border-radius: 0;
+          position: absolute;
+          top: 0;
+          left: 0;
+          opacity: 0;
+          pointer-events: none;
+          transition: all 0.3s ease;
+        }
+        
+        .nav-tab span {
+          font-size: 16px;
+        }
+        
+        /* Show only active tab (acts as dropdown trigger) */
+        .nav-tab.active {
+          display: flex;
+          position: relative;
+          opacity: 1;
+          pointer-events: auto;
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+          padding-right: 40px;
+          border-bottom: 2px solid #667eea;
+          z-index: 1001;
+        }
+        
+        /* Dropdown arrow indicator */
+        .nav-tab.active::after {
+          content: '▼';
+          position: absolute;
+          right: 16px;
           font-size: 12px;
+          color: #667eea;
+          transition: transform 0.3s ease;
+        }
+        
+        /* When dropdown is open */
+        .nav-tabs.open .nav-tab.active::after {
+          transform: rotate(180deg);
+        }
+        
+        /* Show all tabs when dropdown is open */
+        .nav-tabs.open .nav-tab {
+          position: relative;
+          opacity: 1;
+          pointer-events: auto;
+          display: flex;
+        }
+        
+        /* Style non-active tabs in dropdown */
+        .nav-tabs.open .nav-tab:not(.active) {
+          background: white;
+          color: #666;
+        }
+        
+        .nav-tabs.open .nav-tab:not(.active):hover {
+          background: rgba(102, 126, 234, 0.05);
+        }
+        
+        /* Position dropdown menu as overlay */
+        .nav-tabs.open {
+          background: white;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          z-index: 1000;
+          border-radius: 0 0 8px 8px;
         }
 
         #messages {
-          padding: 12px;
+          padding: 10px 8px;
+          width: 100%;
+          overflow-x: hidden;
         }
 
         .msg {
-          max-width: 98%; /* Increased from 90% to reduce right gap on mobile */
+          max-width: 100%;
+          margin-bottom: 10px;
+        }
+        
+        .msg .user,
+        .msg .assistant {
+          padding: 8px 12px;
+          font-size: 13px;
+          max-width: 100%;
+          word-wrap: break-word;
         }
 
         #controls {
-          padding: 12px;
-          gap: 8px;
+          padding: 10px 8px 14px 8px;
+          gap: 6px;
           flex-direction: row;
           flex-wrap: wrap;
+          width: 100%;
         }
 
         textarea {
@@ -513,118 +632,620 @@
           flex: 1 1 100%;
           order: 1;
           font-size: 16px; /* Prevents zoom on iOS */
-          min-height: 50px;
+          min-height: 44px;
+          max-height: 90px;
+          padding: 8px 12px;
         }
 
         #admin-btn {
-          flex: 1 1 calc(33.333% - 6px);
+          flex: 1 1 calc(33.333% - 4px);
           order: 2;
           min-width: 0;
-          font-size: 13px;
-          padding: 12px 8px;
+          font-size: 11px;
+          padding: 8px 4px;
         }
 
         #toggle-mode {
-          flex: 1 1 calc(33.333% - 6px);
+          flex: 1 1 calc(33.333% - 4px);
           order: 3;
           min-width: 0;
-          font-size: 13px;
-          padding: 12px 8px;
+          font-size: 11px;
+          padding: 8px 4px;
+        }
+        
+        #toggle-mode::after {
+          font-size: 7px;
+          bottom: -14px;
         }
 
         #record {
-          flex: 1 1 calc(33.333% - 6px);
+          flex: 1 1 calc(33.333% - 4px);
           order: 4;
           min-width: 0;
-          font-size: 16px;
-          padding: 12px 8px;
+          font-size: 14px;
+          padding: 8px 4px;
         }
 
         #send {
           flex: 1 1 100%;
           order: 5;
-          padding: 14px 20px;
-          font-size: 16px;
+          padding: 10px 16px;
+          font-size: 14px;
         }
 
         button {
           min-width: 0;
+          min-height: 40px;
+        }
+        
+        /* Interview section mobile */
+        .interview-content {
+          padding: 12px 8px;
+          width: 100%;
+        }
+        
+        .interview-container {
+          max-width: 100%;
+          width: 100%;
+        }
+        
+        .interview-header h1 {
+          font-size: 20px;
+        }
+        
+        .interview-header p {
+          font-size: 12px;
+        }
+        
+        .upload-card {
+          padding: 14px 12px;
+          margin-bottom: 12px;
+        }
+        
+        .upload-card h3 {
+          font-size: 15px;
+        }
+        
+        .upload-zone {
+          padding: 24px 12px;
+        }
+        
+        .upload-icon {
+          font-size: 32px;
+        }
+        
+        .jd-textarea {
+          min-height: 120px;
+          font-size: 13px;
+        }
+        
+        .generate-btn {
+          padding: 12px 20px;
+          font-size: 14px;
+        }
+        
+        /* Question tabs mobile - Stack vertically */
+        .question-tabs {
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 12px;
+          width: 100%;
+          overflow-x: hidden;
+        }
+        
+        .question-tab {
+          width: 100%;
+          padding: 10px 14px;
+          font-size: 13px;
+          min-width: 0;
+        }
+        
+        .question-tab .count {
+          font-size: 18px;
+        }
+        
+        /* Question cards mobile */
+        .question-card {
+          padding: 20px 16px;
+          margin-bottom: 16px;
+        }
+        
+        .question-text {
+          font-size: 15px;
+        }
+        
+        .question-reasoning {
+          padding: 12px;
+        }
+        
+        /* Action buttons mobile */
+        .action-buttons {
+          flex-direction: column;
+          gap: 10px;
+        }
+        
+        .action-btn {
+          min-width: 100%;
+          padding: 12px 20px;
+          font-size: 14px;
+        }
+        
+        /* Analysis summary mobile */
+        .analysis-summary {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        
+        .analysis-item {
+          padding: 12px;
+        }
+        
+        /* Skills list mobile */
+        .skills-list {
+          gap: 6px;
+        }
+        
+        .skill-tag {
+          padding: 4px 10px;
+          font-size: 12px;
+        }
+        
+        /* Resume practice mobile */
+        #resume-practice-section {
+          padding: 8px;
+          width: 100%;
+          overflow-x: hidden;
+        }
+        
+        .practice-chat-container {
+          min-height: 250px;
+          max-height: 350px;
+          padding: 12px 8px;
+          width: 100%;
+        }
+        
+        .practice-message {
+          padding: 8px 10px;
+          font-size: 13px;
+          max-width: 100%;
+        }
+        
+        .practice-message.user {
+          margin-left: 5%;
+        }
+        
+        .practice-message.assistant {
+          margin-right: 5%;
+        }
+        
+        .practice-input-container {
+          flex-wrap: wrap;
+          gap: 6px;
+          width: 100%;
+        }
+        
+        .practice-input-container textarea {
+          flex: 1 1 100%;
+          font-size: 16px;
+          padding: 8px 12px;
+          min-height: 44px;
+        }
+        
+        #practice-record {
+          flex: 1 1 calc(50% - 3px);
+          padding: 10px 12px;
+          font-size: 14px;
+        }
+        
+        #practice-send-btn {
+          flex: 1 1 calc(50% - 3px);
+          padding: 10px 12px;
+          font-size: 13px;
+        }
+        
+        .example-questions {
+          padding: 10px 8px;
+          margin-top: 12px;
+        }
+        
+        .example-questions strong {
+          font-size: 12px;
+        }
+        
+        .example-btn {
+          font-size: 11px;
+          padding: 6px 10px;
+          margin: 3px;
+        }
+        
+        /* Rating section mobile */
+        .rating-card {
+          padding: 20px 16px;
+          margin-bottom: 16px;
+        }
+        
+        .rating-stars {
+          gap: 6px;
+        }
+        
+        .star {
+          font-size: 28px;
+        }
+        
+        .report-summary {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+        }
+        
+        .summary-stat {
+          padding: 16px 12px;
+        }
+        
+        .stat-value {
+          font-size: 24px;
+        }
+        
+        /* Modal mobile */
+        #username-modal-content {
+          width: 95%;
+          padding: 24px 20px;
+        }
+        
+        #username-modal h2 {
+          font-size: 20px;
+        }
+        
+        /* Input method toggle mobile */
+        .input-method-toggle {
+          flex-direction: column;
+          gap: 10px;
+          padding: 10px;
+        }
+        
+        .method-btn {
+          max-width: 100%;
+          padding: 12px 20px;
+          font-size: 14px;
+        }
+        
+        /* Username card mobile */
+        .username-card {
+          padding: 14px 12px;
+          width: 100%;
+        }
+        
+        .username-card-content {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        
+        .username-info h3 {
+          font-size: 14px;
+        }
+        
+        .username-info p {
+          font-size: 12px;
+        }
+        
+        .username-action {
+          width: 100%;
+        }
+        
+        .username-action .action-btn {
+          width: 100%;
+          padding: 8px 12px;
+          font-size: 13px;
+        }
+        
+        .username-display {
+          width: 100%;
+          justify-content: space-between;
+        }
+        
+        /* Text actions mobile */
+        .text-actions {
+          flex-direction: column;
+          width: 100%;
+        }
+        
+        .text-actions .action-btn {
+          width: 100%;
+          min-width: 100%;
+          padding: 8px 12px;
+          font-size: 13px;
+        }
+        
+        /* Resume upload zone mobile */
+        .resume-upload-zone {
+          padding: 24px 12px;
+          width: 100%;
+        }
+        
+        .resume-upload-zone .upload-icon {
+          font-size: 40px;
+        }
+        
+        .resume-upload-zone strong {
+          font-size: 14px;
+        }
+        
+        .practice-mode-selector {
+          flex-direction: column;
+          gap: 6px;
+          padding: 6px;
+          width: 100%;
+        }
+        
+        .mode-btn {
+          width: 100%;
+          padding: 10px 12px;
+          font-size: 13px;
+          gap: 6px;
         }
       }
 
       @media (max-width: 480px) {
+        * {
+          max-width: 100vw;
+        }
+        
         #header {
-          padding: 12px 16px;
+          padding: 8px 10px;
         }
 
         #header h1 {
-          font-size: 18px;
+          font-size: 14px;
         }
 
         #header p {
-          font-size: 11px;
+          font-size: 10px;
+        }
+        
+        /* Dropdown remains same, just adjust font sizes */
+        .nav-tab {
+          padding: 10px 14px;
+          font-size: 12px;
+        }
+        
+        .nav-tab.active {
+          padding-right: 36px;
+        }
+        
+        .nav-tab span {
+          font-size: 14px;
+        }
+        
+        .nav-tab.active::after {
+          font-size: 10px;
+          right: 14px;
         }
 
         #controls {
-          padding: 10px;
-          gap: 8px;
+          padding: 8px 6px 12px 6px;
+          gap: 5px;
         }
 
         textarea {
-          min-height: 56px;
+          min-height: 44px;
           font-size: 16px;
+          padding: 8px 10px;
         }
 
         #admin-btn {
-          font-size: 12px;
-          padding: 12px 6px;
+          font-size: 10px;
+          padding: 8px 3px;
         }
 
         #toggle-mode {
-          font-size: 12px;
-          padding: 12px 6px;
+          font-size: 10px;
+          padding: 8px 3px;
+        }
+        
+        #toggle-mode::after {
+          display: none; /* Hide label text on very small screens */
         }
 
         #record {
-          font-size: 16px;
-          padding: 12px 6px;
+          font-size: 13px;
+          padding: 8px 3px;
         }
 
         #send {
-          padding: 14px 20px;
-          font-size: 15px;
+          padding: 10px 14px;
+          font-size: 13px;
         }
 
         .msg .user::before,
         .msg .assistant::before {
-          font-size: 10px;
+          font-size: 9px;
         }
 
         pre {
+          font-size: 11px;
+          padding: 8px;
+        }
+        
+        .interview-header h1 {
+          font-size: 18px;
+        }
+        
+        .interview-header p {
+          font-size: 11px;
+        }
+        
+        .upload-card {
+          padding: 12px 10px;
+        }
+        
+        .upload-card h3 {
+          font-size: 14px;
+        }
+        
+        .question-card {
+          padding: 12px 10px;
+        }
+        
+        .question-text {
+          font-size: 13px;
+        }
+        
+        .generate-btn {
+          padding: 10px 16px;
+          font-size: 13px;
+        }
+        
+        .action-btn {
+          padding: 8px 12px;
           font-size: 12px;
-          padding: 12px;
+        }
+        
+        .practice-message {
+          padding: 7px 10px;
+          font-size: 12px;
+        }
+        
+        .practice-chat-container {
+          padding: 10px 6px;
+        }
+        
+        .rating-card {
+          padding: 12px 10px;
+        }
+        
+        .report-summary {
+          grid-template-columns: 1fr;
+        }
+        
+        .mode-btn {
+          padding: 8px 10px;
+          font-size: 12px;
         }
       }
       
-      /* Extra small screens */
+      /* Extra small screens - Further optimizations */
       @media (max-width: 360px) {
+        #header {
+          padding: 6px 8px;
+        }
+        
         #header h1 {
-          font-size: 16px;
+          font-size: 13px;
+        }
+        
+        #header p {
+          font-size: 9px;
+        }
+        
+        /* Smaller dropdown */
+        .nav-tab {
+          padding: 9px 12px;
+          font-size: 11px;
+        }
+        
+        .nav-tab.active {
+          padding-right: 32px;
+        }
+        
+        .nav-tab.active::after {
+          font-size: 9px;
+          right: 12px;
+        }
+        
+        .nav-tab span {
+          font-size: 13px;
         }
 
         #toggle-mode {
-          font-size: 11px;
-          padding: 10px 6px;
+          font-size: 9px;
+          padding: 7px 3px;
         }
 
         #record {
-          font-size: 14px;
-          padding: 10px 6px;
+          font-size: 12px;
+          padding: 7px 3px;
+        }
+        
+        #admin-btn {
+          font-size: 9px;
+          padding: 7px 3px;
+        }
+        
+        #send {
+          padding: 9px 12px;
+          font-size: 12px;
+        }
+        
+        .mode-btn {
+          padding: 7px 8px;
+          font-size: 11px;
+        }
+        
+        .practice-message {
+          padding: 6px 8px;
+          font-size: 11px;
         }
 
         #send {
-          font-size: 14px;
-          padding: 12px 16px;
+          font-size: 13px;
+          padding: 10px 14px;
+        }
+        
+        .interview-header h1 {
+          font-size: 18px;
+        }
+        
+        .upload-card {
+          padding: 14px 10px;
+        }
+        
+        .question-card {
+          padding: 14px 10px;
+        }
+        
+        .action-btn {
+          padding: 10px 14px;
+          font-size: 12px;
+        }
+      }
+      
+      /* Landscape mobile optimization */
+      @media (max-height: 500px) and (orientation: landscape) {
+        #header {
+          padding: 8px 16px;
+        }
+        
+        #header h1 {
+          font-size: 16px;
+        }
+        
+        #header p {
+          display: none; /* Hide subtitle in landscape */
+        }
+        
+        .nav-tab {
+          padding: 8px 16px;
+        }
+        
+        #controls {
+          padding: 8px;
+        }
+        
+        textarea {
+          min-height: 40px;
+          max-height: 60px;
+        }
+        
+        .interview-content {
+          padding: 16px 12px;
+        }
+        
+        .interview-header {
+          margin-bottom: 20px;
+        }
+        
+        .upload-card {
+          margin-bottom: 12px;
         }
       }
 
@@ -907,8 +1528,11 @@
       
       .interview-content {
         flex: 1;
+        overflow-x: hidden;
         overflow-y: auto;
         padding: 40px 20px;
+        width: 100%;
+        max-width: 100vw;
         background: linear-gradient(135deg, 
           rgba(102, 126, 234, 0.03) 0%,
           rgba(118, 75, 162, 0.03) 100%);
@@ -916,6 +1540,7 @@
       
       .interview-container {
         max-width: 900px;
+        width: 100%;
         margin: 0 auto;
       }
       
@@ -1435,8 +2060,10 @@
         display: none;
         flex-direction: column;
         height: calc(100vh - 120px); /* Account for header + nav tabs */
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: hidden;
         width: 100%;
+        max-width: 100vw;
       }
       
       #chat-section.active {
@@ -1677,8 +2304,11 @@
         display: none;
         flex-direction: column;
         height: calc(100vh - 120px);
+        overflow-x: hidden;
         overflow-y: auto;
         width: 100%;
+        max-width: 100vw;
+        padding: 16px;
       }
       
       #resume-practice-section.active {
@@ -1689,26 +2319,43 @@
         display: flex;
         gap: 12px;
         margin-bottom: 20px;
+        background: rgba(102, 126, 234, 0.05);
+        padding: 8px;
+        border-radius: 12px;
       }
       
       .mode-btn {
         flex: 1;
-        padding: 12px 20px;
+        padding: 14px 24px;
         background: white;
-        border: 2px solid #ddd;
-        border-radius: 10px;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
         color: #666;
         font-size: 15px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+      
+      .mode-btn:hover:not(.active) {
+        border-color: #667eea;
+        color: #667eea;
+        background: rgba(102, 126, 234, 0.05);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       }
       
       .mode-btn.active {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border-color: transparent;
-        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+        transform: translateY(-2px);
       }
       
       .practice-chat-container {
@@ -1912,34 +2559,119 @@
       .input-method-toggle {
         display: flex;
         gap: 12px;
-        margin-bottom: 20px;
+        margin: 20px 0;
         justify-content: center;
+        background: rgba(102, 126, 234, 0.05);
+        padding: 8px;
+        border-radius: 12px;
       }
       
       .method-btn {
         flex: 1;
-        max-width: 200px;
-        padding: 12px 20px;
+        max-width: 250px;
+        padding: 14px 24px;
         background: white;
-        border: 2px solid #ddd;
-        border-radius: 10px;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
         color: #666;
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
       }
       
       .method-btn.active {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        border-color: #667eea;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        border-color: transparent;
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+        transform: translateY(-2px);
       }
       
       .method-btn:hover:not(.active) {
         border-color: #667eea;
         color: #667eea;
+        background: rgba(102, 126, 234, 0.05);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      
+      /* Username Section Styling */
+      .username-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+      
+      .username-card-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      
+      .username-info h3 {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .username-info p {
+        margin: 0;
+        font-size: 14px;
+        color: #666;
+        line-height: 1.5;
+      }
+      
+      .username-action {
+        flex-shrink: 0;
+      }
+      
+      .username-action .action-btn {
+        margin: 0;
+        padding: 12px 24px;
+        font-size: 15px;
+        min-width: 160px;
+      }
+      
+      .username-display {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        background: white;
+        padding: 12px 20px;
+        border-radius: 12px;
+        border: 2px solid rgba(34, 197, 94, 0.3);
+      }
+      
+      .username-display.active {
+        display: flex;
+      }
+      
+      .username-display-text {
+        font-size: 16px;
+        font-weight: 600;
+        color: #10b981;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      
+      .username-display .action-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+        min-width: auto;
       }
       
       .input-option {
@@ -1950,36 +2682,88 @@
       .resume-text-container {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 16px;
+        margin-top: 16px;
       }
       
       .resume-text-container textarea {
         width: 100%;
-        padding: 16px;
-        border: 2px solid #ddd;
-        border-radius: 10px;
+        padding: 18px;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
         font-size: 14px;
-        font-family: inherit;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         resize: vertical;
         min-height: 300px;
-        line-height: 1.6;
+        line-height: 1.7;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
       }
       
       .resume-text-container textarea:focus {
         outline: none;
         border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
       }
       
       .resume-text-container textarea::placeholder {
         color: #999;
-        line-height: 1.8;
+        line-height: 1.9;
       }
       
       .text-actions {
         display: flex;
         gap: 12px;
         justify-content: flex-end;
+      }
+      
+      .text-actions .action-btn {
+        min-width: 180px;
+        padding: 14px 28px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      
+      /* Resume Upload Zone Improvements */
+      .resume-upload-zone {
+        position: relative;
+        border: 3px dashed rgba(102, 126, 234, 0.3);
+        border-radius: 16px;
+        padding: 40px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: rgba(102, 126, 234, 0.02);
+        margin-top: 16px;
+      }
+      
+      .resume-upload-zone:hover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.06);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+      }
+      
+      .resume-upload-zone .upload-icon {
+        font-size: 56px;
+        margin-bottom: 16px;
+        opacity: 0.8;
+      }
+      
+      .resume-upload-zone p {
+        margin: 8px 0;
+        color: #666;
+      }
+      
+      .resume-upload-zone strong {
+        color: #333;
+        font-size: 16px;
+      }
+      
+      .resume-upload-zone .file-types {
+        font-size: 13px;
+        color: #999;
+        margin-top: 12px;
       }
       
       @keyframes fadeIn {
@@ -2000,11 +2784,24 @@
         }
         
         .upload-card {
-          padding: 20px;
+          padding: 20px 16px;
+          margin-bottom: 16px;
+        }
+        
+        .upload-card h3 {
+          font-size: 17px;
         }
         
         .question-tabs {
-          flex-direction: column;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          gap: 8px;
+          -webkit-overflow-scrolling: touch;
+        }
+        
+        .question-tab {
+          flex-shrink: 0;
+          min-width: 100px;
         }
         
         .action-buttons {
@@ -2017,6 +2814,40 @@
         
         .analysis-summary {
           grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        
+        .report-summary {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .practice-input-container {
+          flex-wrap: wrap;
+        }
+        
+        .practice-input-container textarea {
+          flex: 1 1 100%;
+        }
+        
+        #practice-record,
+        #practice-send-btn {
+          flex: 1 1 calc(50% - 6px);
+        }
+        
+        /* Reduce padding on mobile for better space usage */
+        .rating-card,
+        .upload-card,
+        .results-header,
+        .question-card {
+          border-radius: 12px;
+        }
+        
+        /* Touch-friendly targets */
+        button,
+        .action-btn,
+        .question-tab,
+        .nav-tab {
+          min-height: 44px; /* iOS recommended touch target */
         }
       }
     </style>
@@ -2286,39 +3117,45 @@ Team leadership experience preferred"></textarea>
           </div>
           
           <!-- Username Section (for Windows App sync) -->
-          <div class="rating-card" style="margin-bottom: 20px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <h3 style="margin: 0 0 5px 0;">👤 User Identity</h3>
-                <p style="margin: 0; font-size: 14px; opacity: 0.8;" id="practice-username-status">
-                  Set your username to sync with Windows Voice App
+          <div class="username-card">
+            <div class="username-card-content">
+              <div class="username-info">
+                <h3>👤 User Identity</h3>
+                <p id="practice-username-status">
+                  Set your username to sync conversations with Windows Voice App
                 </p>
               </div>
-              <button 
-                class="action-btn primary" 
-                id="practice-guest-btn" 
-                onclick="showPracticeUsernamePrompt()"
-                style="margin: 0;">
-                👤 Set Username
-              </button>
-              <div id="practice-username-display" style="display: none; align-items: center; gap: 10px;">
-                <span style="font-size: 16px; font-weight: bold; color: #4CAF50;">
-                  ✅ <span id="practice-current-username"></span>
-                </span>
+              <div class="username-action">
                 <button 
-                  class="action-btn" 
-                  onclick="showPracticeUsernamePrompt()"
-                  style="margin: 0; padding: 8px 15px; font-size: 13px;">
-                  🔄 Change
+                  class="action-btn primary" 
+                  id="practice-guest-btn" 
+                  onclick="showPracticeUsernamePrompt()">
+                  👤 Set Username
                 </button>
+                <div class="username-display" id="practice-username-display">
+                  <span class="username-display-text">
+                    ✅ <span id="practice-current-username"></span>
+                  </span>
+                  <button 
+                    class="action-btn" 
+                    onclick="showPracticeUsernamePrompt()">
+                    🔄 Change
+                  </button>
+                </div>
               </div>
             </div>
           </div>
           
           <!-- Resume Upload Section -->
-          <div id="practice-resume-upload" class="rating-card">
-            <h3>📄 Step 1: Provide Your Resume</h3>
-            <p>Upload your resume file or paste your resume text to get AI-powered, personalized interview answers.</p>
+          <div id="practice-resume-upload" class="rating-card" style="border: 2px solid rgba(102, 126, 234, 0.2);">
+            <div style="margin-bottom: 20px;">
+              <h3 style="font-size: 20px; color: #333; margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
+                📄 Step 1: Provide Your Resume
+              </h3>
+              <p style="margin: 0; color: #666; line-height: 1.6;">
+                Upload your resume file or paste your resume text to get AI-powered, personalized interview answers.
+              </p>
+            </div>
             
             <!-- Input Method Toggle -->
             <div class="input-method-toggle">
@@ -2383,9 +3220,15 @@ Team leadership experience preferred"></textarea>
           
           <!-- Interview Practice Chat -->
           <div id="practice-chat-section" style="display: none;">
-            <div class="rating-card">
-              <h3>💬 Step 2: Practice Interview Questions</h3>
-              <p>Ask interview questions and get personalized answers based on your resume!</p>
+            <div class="rating-card" style="border: 2px solid rgba(102, 126, 234, 0.2);">
+              <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 20px; color: #333; margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
+                  💬 Step 2: Practice Interview Questions
+                </h3>
+                <p style="margin: 0; color: #666; line-height: 1.6;">
+                  Ask interview questions and get personalized answers based on your resume!
+                </p>
+              </div>
               
               <div class="practice-mode-selector">
                 <button id="practice-detailed-btn" class="mode-btn active" onclick="setPracticeMode('detailed')">

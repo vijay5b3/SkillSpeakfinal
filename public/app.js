@@ -761,13 +761,35 @@ connectSSE();
    ========================================== */
 
 // Navigation between Chat and Interview sections
+const navTabsContainer = document.querySelector('.nav-tabs');
+let dropdownOpen = false;
+
 document.querySelectorAll('.nav-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
+  tab.addEventListener('click', (e) => {
     const section = tab.dataset.section;
+    const isMobile = window.innerWidth <= 768;
+    
+    // On mobile, if clicking the active tab, toggle dropdown
+    if (isMobile && tab.classList.contains('active')) {
+      e.stopPropagation();
+      dropdownOpen = !dropdownOpen;
+      if (dropdownOpen) {
+        navTabsContainer.classList.add('open');
+      } else {
+        navTabsContainer.classList.remove('open');
+      }
+      return;
+    }
     
     // Update tabs
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
+    
+    // Close dropdown on mobile after selection
+    if (isMobile) {
+      navTabsContainer.classList.remove('open');
+      dropdownOpen = false;
+    }
     
     // Hide all sections
     document.getElementById('chat-section').classList.remove('active');
@@ -786,6 +808,15 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
       document.getElementById('resume-practice-section').classList.add('active');
     }
   });
+});
+
+// Close dropdown when clicking outside on mobile
+document.addEventListener('click', (e) => {
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile && dropdownOpen && !navTabsContainer.contains(e.target)) {
+    navTabsContainer.classList.remove('open');
+    dropdownOpen = false;
+  }
 });
 
 // File upload handling

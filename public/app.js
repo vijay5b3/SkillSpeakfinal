@@ -1755,78 +1755,178 @@ function displayAnswersInQuestions(answers) {
   });
 }
 
-// Download questions and answers as a text file
+// Download questions and answers as a colorful PDF
 function downloadQuestionsAndAnswers() {
   if (!currentResults || !generatedAnswers) {
     alert('Please generate answers first');
     return;
   }
 
-  let content = '=== INTERVIEW QUESTIONS & ANSWERS ===\n\n';
-  content += `Generated: ${new Date().toLocaleString()}\n\n`;
-
-  // Add analysis summary
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  let yPos = 20;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const maxWidth = pageWidth - (margin * 2);
+  
+  // Helper function to check if we need a new page
+  const checkPageBreak = (requiredSpace) => {
+    if (yPos + requiredSpace > pageHeight - 20) {
+      doc.addPage();
+      yPos = 20;
+      return true;
+    }
+    return false;
+  };
+  
+  // Helper function to wrap text
+  const addWrappedText = (text, x, y, maxWidth, fontSize, color) => {
+    doc.setFontSize(fontSize);
+    if (color) doc.setTextColor(color[0], color[1], color[2]);
+    const lines = doc.splitTextToSize(text, maxWidth);
+    lines.forEach((line, index) => {
+      checkPageBreak(7);
+      doc.text(line, x, y + (index * 7));
+    });
+    return lines.length * 7;
+  };
+  
+  // Title with gradient effect (using colored rectangle)
+  doc.setFillColor(103, 58, 183); // Purple
+  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(24);
+  doc.setFont(undefined, 'bold');
+  doc.text('Interview Questions & Answers', pageWidth / 2, 20, { align: 'center' });
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 28, { align: 'center' });
+  
+  yPos = 45;
+  
+  // Analysis Summary Section
   if (currentResults.analysis) {
-    content += '📊 ANALYSIS SUMMARY\n';
-    content += '─'.repeat(50) + '\n';
-    if (currentResults.analysis.role) content += `Role: ${currentResults.analysis.role}\n`;
-    if (currentResults.analysis.experienceLevel) content += `Level: ${currentResults.analysis.experienceLevel}\n`;
+    doc.setFillColor(240, 240, 255); // Light purple background
+    doc.rect(margin, yPos, maxWidth, 8, 'F');
+    doc.setTextColor(103, 58, 183);
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Analysis Summary', margin + 3, yPos + 6);
+    yPos += 12;
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(60, 60, 60);
+    
+    if (currentResults.analysis.role) {
+      doc.text(`Role: ${currentResults.analysis.role}`, margin, yPos);
+      yPos += 6;
+    }
+    if (currentResults.analysis.experienceLevel) {
+      doc.text(`Level: ${currentResults.analysis.experienceLevel}`, margin, yPos);
+      yPos += 6;
+    }
     if (currentResults.analysis.matchingSkills && currentResults.analysis.matchingSkills.length > 0) {
-      content += `Matching Skills: ${currentResults.analysis.matchingSkills.join(', ')}\n`;
+      yPos += addWrappedText(`Matching Skills: ${currentResults.analysis.matchingSkills.join(', ')}`, margin, yPos, maxWidth, 10, [60, 60, 60]);
     }
     if (currentResults.analysis.skillGaps && currentResults.analysis.skillGaps.length > 0) {
-      content += `Skill Gaps: ${currentResults.analysis.skillGaps.join(', ')}\n`;
+      yPos += addWrappedText(`Skill Gaps: ${currentResults.analysis.skillGaps.join(', ')}`, margin, yPos, maxWidth, 10, [60, 60, 60]);
     }
-    content += '\n';
+    yPos += 10;
   }
-
+  
   // Add questions and answers by category
   const categories = [
-    { name: 'BASIC', questions: currentResults.questions.basic },
-    { name: 'ADVANCED', questions: currentResults.questions.advanced },
-    { name: 'SCENARIO-BASED', questions: currentResults.questions.scenario }
+    { name: 'BASIC QUESTIONS', questions: currentResults.questions.basic, color: [52, 152, 219] }, // Blue
+    { name: 'ADVANCED QUESTIONS', questions: currentResults.questions.advanced, color: [230, 126, 34] }, // Orange
+    { name: 'SCENARIO-BASED QUESTIONS', questions: currentResults.questions.scenario, color: [231, 76, 60] } // Red
   ];
 
   let answerIndex = 0;
   categories.forEach(cat => {
-    content += `\n${'='.repeat(50)}\n`;
-    content += `📘 ${cat.name} QUESTIONS\n`;
-    content += `${'='.repeat(50)}\n\n`;
+    checkPageBreak(20);
+    
+    // Category header with colored background
+    doc.setFillColor(cat.color[0], cat.color[1], cat.color[2]);
+    doc.rect(margin, yPos, maxWidth, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text(cat.name, pageWidth / 2, yPos + 7, { align: 'center' });
+    yPos += 15;
 
     cat.questions.forEach((q, i) => {
+      checkPageBreak(30);
+      
       const answer = generatedAnswers[answerIndex];
       answerIndex++;
 
-      content += `${i + 1}. QUESTION:\n`;
-      content += `   ${q.question}\n\n`;
+      // Question number and type badge
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, yPos, maxWidth, 8, 'F');
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(cat.color[0], cat.color[1], cat.color[2]);
+      doc.text(`Q${i + 1}`, margin + 2, yPos + 5.5);
       
+      // Type badge
+      const qType = q.type && q.type.toLowerCase().includes('coding') ? 'CODING' : 'TECHNICAL';
+      const badgeColor = qType === 'CODING' ? [16, 185, 129] : [59, 130, 246];
+      doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2]);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.rect(pageWidth - margin - 25, yPos + 1, 23, 6, 'F');
+      doc.text(qType, pageWidth - margin - 13.5, yPos + 5, { align: 'center' });
+      
+      yPos += 10;
+      
+      // Question text
+      doc.setTextColor(40, 40, 40);
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      yPos += addWrappedText(q.question, margin, yPos, maxWidth, 10, [40, 40, 40]);
+      yPos += 3;
+      
+      // Reasoning
       if (q.reasoning) {
-        content += `   💭 Why this question?\n`;
-        content += `   ${q.reasoning}\n\n`;
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'italic');
+        doc.setTextColor(100, 100, 100);
+        yPos += addWrappedText(`Why: ${q.reasoning}`, margin, yPos, maxWidth, 9, [100, 100, 100]);
+        yPos += 3;
       }
 
+      // Answer
       if (answer && answer.answer) {
-        content += `   💡 MODEL ANSWER:\n`;
-        content += `   ${answer.answer}\n\n`;
+        checkPageBreak(15);
+        doc.setFillColor(240, 253, 244); // Light green background
+        doc.rect(margin, yPos, maxWidth, 6, 'F');
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(22, 163, 74);
+        doc.text('MODEL ANSWER', margin + 2, yPos + 4);
+        yPos += 8;
+        
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(40, 40, 40);
+        yPos += addWrappedText(answer.answer, margin, yPos, maxWidth, 9, [40, 40, 40]);
       }
-
-      content += `   Focus Area: ${q.focusArea || 'General'}\n`;
-      content += `\n${'-'.repeat(50)}\n\n`;
+      
+      // Focus area
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Focus: ${q.focusArea || 'General'}`, margin, yPos + 5);
+      yPos += 12;
     });
+    
+    yPos += 5;
   });
-
-  // Create download
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `interview-qa-${Date.now()}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-
-  console.log('Downloaded Q&A document');
+  
+  // Save the PDF
+  doc.save(`interview-qa-${Date.now()}.pdf`);
+  console.log('Downloaded colorful PDF');
 }
 
 // ============================================
@@ -2439,6 +2539,43 @@ async function uploadPracticeResume() {
   }
 }
 
+// Format practice response with proper paragraph breaks and styling
+function formatPracticeResponse(text) {
+  if (!text) return '';
+  
+  // Split by periods followed by space and capital letter (sentence boundaries)
+  // Also split by newlines
+  let formatted = text
+    // Replace multiple newlines with paragraph breaks
+    .replace(/\n\n+/g, '</p><p style="margin: 12px 0;">')
+    // Replace single newlines with line breaks
+    .replace(/\n/g, '<br>')
+    // Add space after periods followed by capital letters (sentence breaks)
+    .replace(/\. ([A-Z])/g, '.</p><p style="margin: 12px 0;">$1')
+    // Handle questions followed by answers
+    .replace(/\? ([A-Z])/g, '?</p><p style="margin: 12px 0;">$1')
+    // Handle exclamations
+    .replace(/! ([A-Z])/g, '!</p><p style="margin: 12px 0;">$1');
+  
+  // Wrap in paragraph if not already wrapped
+  if (!formatted.startsWith('<p')) {
+    formatted = '<p style="margin: 12px 0;">' + formatted;
+  }
+  if (!formatted.endsWith('</p>')) {
+    formatted = formatted + '</p>';
+  }
+  
+  // Bold important phrases
+  formatted = formatted
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/experience:/gi, '<strong>Experience:</strong>')
+    .replace(/skills:/gi, '<strong>Skills:</strong>')
+    .replace(/projects:/gi, '<strong>Projects:</strong>')
+    .replace(/background:/gi, '<strong>Background:</strong>');
+  
+  return formatted;
+}
+
 // Send practice message
 async function sendPracticeMessage() {
   const input = document.getElementById('practice-input');
@@ -2474,6 +2611,15 @@ async function sendPracticeMessage() {
   container.appendChild(messageDiv);
   
   try {
+    // Debug logging
+    console.log('Sending practice message:', {
+      hasSessionId: !!practiceSessionId,
+      hasResumeData: !!practiceResumeData,
+      hasResumeText: !!practiceResumeText,
+      resumeTextLength: practiceResumeText?.length || 0,
+      mode: practiceMode
+    });
+    
     // Build URL with practiceClientId for Windows app sync
     let url = '/api/chat-with-resume';
     if (practiceClientId) {
@@ -2491,12 +2637,17 @@ async function sendPracticeMessage() {
         sessionId: practiceSessionId,
         mode: practiceMode,
         resumeData: practiceResumeData, // Send resume data for serverless compatibility
-        resumeText: practiceResumeText  // Send full resume text for serverless compatibility
+        resumeText: practiceResumeText, // Send full resume text for serverless compatibility
+        conversationHistory: practiceMessages // Send conversation history for context
       })
     });
     
+    console.log('Response status:', response.status, response.ok);
+    
     if (!response.ok) {
-      throw new Error('Failed to get response');
+      const errorText = await response.text();
+      console.error('Response error:', errorText);
+      throw new Error(`Failed to get response: ${response.status}`);
     }
     
     // Handle streaming response
@@ -2517,12 +2668,15 @@ async function sendPracticeMessage() {
             const data = JSON.parse(line.slice(6));
             
             if (data.type === 'chunk' && data.content) {
+              // Add content as-is (API handles spacing correctly)
               fullText += data.content;
-              contentSpan.textContent = fullText;
+              // Format text with proper line breaks and spacing
+              contentSpan.innerHTML = formatPracticeResponse(fullText);
               container.scrollTop = container.scrollHeight;
             } else if (data.type === 'complete') {
               fullText = data.content;
-              contentSpan.textContent = fullText;
+              // Format the complete response with proper styling
+              contentSpan.innerHTML = formatPracticeResponse(fullText);
               messageDiv.classList.remove('streaming');
               container.scrollTop = container.scrollHeight;
               practiceMessages.push({ role: 'assistant', text: fullText, isResumeAware: true });
@@ -2538,8 +2692,15 @@ async function sendPracticeMessage() {
     }
     
   } catch (error) {
-    console.error('Error:', error);
-    contentSpan.textContent = '❌ Sorry, there was an error. Please try again.';
+    console.error('Error in sendPracticeMessage:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      hasResumeData: !!practiceResumeData,
+      hasResumeText: !!practiceResumeText
+    });
+    
+    contentSpan.textContent = `❌ Error: ${error.message}. Please check console for details.`;
     messageDiv.classList.remove('streaming');
   } finally {
     sendBtn.disabled = false;

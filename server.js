@@ -472,20 +472,20 @@ Return a JSON object with this structure:
   }
 }
 
-IMPORTANT: Generate EXACTLY 20 questions for each category (basic, advanced, scenario). Total 60 questions.
+IMPORTANT: Generate EXACTLY 10 questions for each category (basic, advanced, scenario). Total 30 questions.
 
 QUESTION TYPE DISTRIBUTION - MUST FOLLOW:
-- Basic (20 questions): 50% Technical Concepts + 50% Coding Problems
-  * 10 Technical: Definitions, concepts, theory, best practices, system design basics
-  * 10 Coding: Write simple functions, basic algorithms, easy programming tasks
+- Basic (10 questions): 80% Technical Concepts + 20% Coding Problems
+  * 8 Technical: Definitions, concepts, theory, best practices, system design basics
+  * 2 Coding: Write simple functions, basic algorithms, easy programming tasks
   
-- Advanced (20 questions): 40% Technical + 60% Coding Problems
+- Advanced (10 questions): 80% Technical + 20% Coding Problems
   * 8 Technical: Architecture, optimization, complex concepts, trade-offs
-  * 12 Coding: Implement algorithms, data structures, complex logic, optimize code
+  * 2 Coding: Implement algorithms, data structures, complex logic, optimize code
   
-- Scenario (20 questions): 30% Technical + 70% Coding Problems
-  * 6 Technical: System design, scalability, real-world architecture decisions
-  * 14 Coding: Solve real-world problems with code, build features, debug scenarios
+- Scenario (10 questions): 80% Technical + 20% Coding Problems
+  * 8 Technical: System design, scalability, real-world architecture decisions
+  * 2 Coding: Solve real-world problems with code, build features, debug scenarios
 
 CODING QUESTIONS MUST:
 - Ask candidate to "Write code", "Implement", "Code a solution", "Create a function"
@@ -815,7 +815,14 @@ Make the code clean, efficient, and interview-ready.`;
 
 5. Keep the answer 4-6 sentences, professional, confident, and authentic.
 
-Return ONLY the answer text - no labels, no JSON, no extra formatting.`;
+6. FORMATTING RULES:
+   - Do NOT use strikethrough formatting (~~text~~)
+   - Do NOT use double tildes or any strikethrough markdown
+   - Use simple, clean text with proper paragraphs
+   - Use **bold** for emphasis only when necessary
+   - Keep formatting minimal and professional
+
+Return ONLY the answer text - no labels, no JSON, no extra formatting, no strikethrough text.`;
           } else {
             systemPrompt += `\n\nProvide a professional first-person answer that:
 - Uses "I" statements and sounds conversational
@@ -847,27 +854,80 @@ Return ONLY the answer text - no labels, no JSON, no extra formatting.`;
           total: questions.length
         })}\n\n`);
 
-        const response = await axios.post(
-          `${OPENROUTER_BASE_URL}/chat/completions`,
-          {
-            model: OPENROUTER_MODEL,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt }
-            ],
-            max_tokens: isCodingQuestion ? 1500 : 800, // More tokens for detailed resume-based answers
-            temperature: isCodingQuestion ? 0.3 : 0.7 // Lower temperature for more precise code
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-              'Content-Type': 'application/json'
-            },
-            timeout: 45000 // Longer timeout for coding questions
-          }
-        );
+        let answer = '';
+        let retryCount = 0;
+        const maxRetries = 2;
+        
+        // Retry logic for failed requests
+        while (retryCount <= maxRetries && !answer) {
+          try {
+            console.log(`Generating answer ${i + 1}/${questions.length} (attempt ${retryCount + 1})`);
+            
+            const response = await axios.post(
+              `${OPENROUTER_BASE_URL}/chat/completions`,
+              {
+                model: OPENROUTER_MODEL,
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  { role: 'user', content: userPrompt }
+                ],
+                max_tokens: isCodingQuestion ? 1500 : 800,
+                temperature: isCodingQuestion ? 0.3 : 0.7
+              },
+              {
+                headers: {
+                  'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                  'Content-Type': 'application/json'
+                },
+                timeout: 60000 // Increased timeout to 60 seconds
+              }
+            );
 
-        const answer = response.data.choices[0].message.content.trim();
+            answer = response.data.choices[0].message.content.trim();
+            
+            // Validate answer is not empty
+            if (!answer || answer.length < 20) {
+              console.warn(`Answer too short for question ${i + 1}, retrying...`);
+              answer = '';
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+              continue;
+            }
+            
+            // Remove any strikethrough formatting
+            answer = answer.replace(/~~(.+?)~~/g, '$1');
+            
+            console.log(`✓ Answer ${i + 1} generated successfully (${answer.length} chars)`);
+            break;
+            
+          } catch (apiError) {
+            console.error(`Retry ${retryCount + 1} failed for question ${i + 1}:`, apiError.message);
+            retryCount++;
+            if (retryCount <= maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+            }
+          }
+        }
+        
+        // If still no answer after retries, generate a fallback
+        if (!answer) {
+          console.error(`Failed to generate answer for question ${i + 1} after ${maxRetries + 1} attempts`);
+          if (isCodingQuestion) {
+            answer = `This coding question requires implementing a solution. A strong answer would include:\n\n` +
+                    `1. Clear code implementation with proper syntax\n` +
+                    `2. Handling of edge cases and input validation\n` +
+                    `3. Time and space complexity analysis\n` +
+                    `4. Comments explaining the logic\n\n` +
+                    `Consider using appropriate data structures and algorithms based on the problem requirements.`;
+          } else {
+            answer = `This question focuses on ${q.focusArea || 'technical concepts'}. A comprehensive answer would:\n\n` +
+                    `1. Explain the core concept clearly\n` +
+                    `2. Provide real-world examples or use cases\n` +
+                    `3. Discuss trade-offs and best practices\n` +
+                    `4. Relate to practical experience\n\n` +
+                    `Review the question and prepare specific examples from your experience.`;
+          }
+        }
         
         const answerObj = {
           question: q.question,
@@ -886,10 +946,19 @@ Return ONLY the answer text - no labels, no JSON, no extra formatting.`;
         })}\n\n`);
 
       } catch (error) {
-        console.error('Error generating answer for question:', error.message);
+        console.error('Unexpected error for question:', error.message);
+        
+        // Generate meaningful fallback answer
+        let fallbackAnswer = '';
+        if (isCodingQuestion) {
+          fallbackAnswer = `This coding question requires implementing a solution with clean code, proper error handling, and optimal complexity. Consider the input/output requirements and edge cases when preparing your answer.`;
+        } else {
+          fallbackAnswer = `This technical question about ${q.focusArea || 'the topic'} requires a clear explanation with practical examples. Focus on demonstrating your understanding through real-world scenarios and best practices.`;
+        }
+        
         const errorAnswer = {
           question: q.question,
-          answer: 'Answer generation failed. Please try again.',
+          answer: fallbackAnswer,
           category: q.category || q.focusArea,
           reasoning: q.reasoning
         };
@@ -1356,7 +1425,17 @@ app.post('/api/parse-resume-text', async (req, res) => {
 // Endpoint: Resume-aware chat (Pro feature)
 app.post('/api/chat-with-resume', async (req, res) => {
   try {
-    const { message, sessionId, mode, resumeData, resumeText } = req.body;
+    const { message, sessionId, mode, resumeData, resumeText, conversationHistory } = req.body;
+
+    console.log('Resume-aware chat request:', {
+      hasMessage: !!message,
+      messageLength: message?.length || 0,
+      hasSessionId: !!sessionId,
+      hasResumeData: !!resumeData,
+      hasResumeText: !!resumeText,
+      resumeTextLength: resumeText?.length || 0,
+      conversationLength: conversationHistory?.length || 0
+    });
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
@@ -1367,16 +1446,27 @@ app.post('/api/chat-with-resume', async (req, res) => {
     
     if (resumeData && resumeText) {
       // Resume data sent with request (serverless-friendly)
+      console.log('Using resume data from request body');
       actualResumeData = resumeData;
       fullResumeText = resumeText;
     } else if (sessionId && resumeDataStore.has(sessionId)) {
       // Fallback to in-memory store (local development)
+      console.log('Using resume data from session store');
       const resumeSession = resumeDataStore.get(sessionId);
       actualResumeData = resumeSession.data;
       fullResumeText = resumeSession.fullText || '';
     } else {
+      console.error('No resume data found - sessionId:', sessionId, 'has data:', !!resumeData);
       return res.status(400).json({ error: 'Resume data is required. Please upload your resume again.' });
     }
+
+    // Validate that we have actual resume data
+    if (!actualResumeData || Object.keys(actualResumeData).length === 0) {
+      console.error('Resume data is empty or invalid');
+      return res.status(400).json({ error: 'Invalid resume data. Please upload your resume again.' });
+    }
+
+    console.log('Resume data validated, generating response...');
 
     // Extract clientId for Windows app sync
     const clientId = req.query.clientId || req.headers['x-client-id'];
@@ -1415,27 +1505,49 @@ ${fullResumeText.substring(0, 2000)}${fullResumeText.length > 2000 ? '...' : ''}
 
 INSTRUCTIONS:
 When answering interview questions:
-1. Base answers on the candidate's ACTUAL experience and skills from their resume
-2. Reference specific projects, technologies, or achievements they have
-3. Use details from the full resume text to provide accurate, personalized answers
-4. Keep answers simple, clear, and conversational - like a real human would speak in an interview
-5. Avoid jargon or overly technical language unless the question specifically asks for it
-6. Make answers sound natural and confident, not scripted or robotic
+1. Give DIRECT, PROFESSIONAL answers - speak as if you ARE the candidate answering the interviewer
+2. DO NOT include phrases like "Sure, I'd be happy to explain...", "From what I understand from my resume...", "Based on my experience...", "Let me tell you about..."
+3. Start IMMEDIATELY with the core answer - get straight to the technical or professional content
+4. Base answers on the candidate's ACTUAL experience and skills from their resume
+5. Reference specific projects, technologies, or achievements naturally within the answer
+6. Keep answers clear and confident - like a skilled professional explaining their work
 7. Keep responses concise (3-5 sentences unless more detail is requested)
 8. If the candidate doesn't have direct experience with something, suggest how they could relate their existing experience to it
-9. When discussing projects or achievements, use specific details from the resume
+9. Use first-person perspective naturally ("I designed...", "I implemented...", "We used...") but avoid meta-commentary about answering
+
+ANSWER FORMAT:
+❌ BAD: "Sure, I'd be happy to explain Azure Databricks based on my experience. From what I understand from my resume, Azure Databricks is a powerful cloud-based platform..."
+✅ GOOD: "Databricks is a powerful cloud-based platform that we used for big data processing and analytics. It's built on Apache Spark..."
 
 Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers with examples from their resume' : 'Give brief, clear answers suitable for interview responses'}`;
+
+    // Build conversation messages with history
+    const conversationMessages = [
+      { role: 'system', content: systemPrompt }
+    ];
+    
+    // Add conversation history if provided (limit to last 6 messages to avoid token limits)
+    if (conversationHistory && conversationHistory.length > 0) {
+      const recentHistory = conversationHistory.slice(-6);
+      for (const msg of recentHistory) {
+        conversationMessages.push({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        });
+      }
+    }
+    
+    // Add current message
+    conversationMessages.push({ role: 'user', content: message });
+    
+    console.log('Sending to AI with', conversationMessages.length, 'messages');
 
     // Enable streaming response
     const response = await axios.post(
       `${OPENROUTER_BASE_URL}/chat/completions`,
       {
         model: OPENROUTER_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
+        messages: conversationMessages,
         max_tokens: mode === 'detailed' ? 1000 : 500,
         temperature: 0.7,
         top_p: 0.95,
@@ -1449,7 +1561,7 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
           'X-Title': 'SkillSpeak Resume-Aware Chat'
         },
         responseType: 'stream',
-        timeout: 30000
+        timeout: 45000 // Increased timeout to 45 seconds
       }
     );
 
@@ -1459,6 +1571,25 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
     res.setHeader('Connection', 'keep-alive');
 
     let fullAnswer = '';
+    
+    // Helper function to clean AI response from special tokens
+    const cleanResponse = (text) => {
+      if (!text) return '';
+      
+      // Remove special tokens like <s>, </s>, [INST], [/INST], [OUT], [/OUT]
+      // Note: Do NOT trim() here as it removes spaces between chunks
+      let cleaned = text
+        .replace(/<s>/g, '')
+        .replace(/<\/s>/g, '')
+        .replace(/\[INST\]/g, '')
+        .replace(/\[\/INST\]/g, '')
+        .replace(/\[OUT\]/g, '')
+        .replace(/\[\/OUT\]/g, '')
+        .replace(/<\|im_start\|>/g, '')
+        .replace(/<\|im_end\|>/g, '');
+      
+      return cleaned;
+    };
 
     response.data.on('data', (chunk) => {
       const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
@@ -1468,12 +1599,15 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
           const data = line.slice(6);
           
           if (data === '[DONE]') {
+            // Clean the full answer one more time to ensure all tokens are removed
+            const finalAnswer = cleanResponse(fullAnswer);
+            
             // Send complete message to Windows app
             if (clientId) {
               broadcastEvent({ 
                 role: 'assistant',
                 type: 'complete',
-                content: fullAnswer,
+                content: finalAnswer,
                 isStreaming: false
               }, clientId);
             }
@@ -1481,13 +1615,13 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
             // Send final event to browser
             res.write(`data: ${JSON.stringify({ 
               type: 'complete', 
-              content: fullAnswer,
+              content: finalAnswer,
               basedOn: {
-                experience: resumeData.experience?.totalYears,
-                role: resumeData.experience?.currentRole,
+                experience: actualResumeData.experience?.totalYears,
+                role: actualResumeData.experience?.currentRole,
                 technologies: [
-                  ...(resumeData.technologies?.languages || []),
-                  ...(resumeData.technologies?.frameworks || [])
+                  ...(actualResumeData.technologies?.languages || []),
+                  ...(actualResumeData.technologies?.frameworks || [])
                 ].slice(0, 5)
               }
             })}\n\n`);
@@ -1500,22 +1634,28 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
             const content = parsed.choices?.[0]?.delta?.content;
             
             if (content) {
-              fullAnswer += content;
+              // Clean the content before adding to fullAnswer
+              const cleanedContent = cleanResponse(content);
               
-              // Send chunk to browser
-              res.write(`data: ${JSON.stringify({ 
-                type: 'chunk', 
-                content: content 
-              })}\n\n`);
-              
-              // Broadcast chunk to Windows app
-              if (clientId) {
-                broadcastEvent({ 
-                  role: 'assistant',
-                  type: 'chunk',
-                  content: content,
-                  isStreaming: true
-                }, clientId);
+              if (cleanedContent) {
+                // Add content as-is (API handles spacing correctly)
+                fullAnswer += cleanedContent;
+                
+                // Send cleaned chunk to browser
+                res.write(`data: ${JSON.stringify({ 
+                  type: 'chunk', 
+                  content: cleanedContent 
+                })}\n\n`);
+                
+                // Broadcast cleaned chunk to Windows app
+                if (clientId) {
+                  broadcastEvent({ 
+                    role: 'assistant',
+                    type: 'chunk',
+                    content: cleanedContent,
+                    isStreaming: true
+                  }, clientId);
+                }
               }
             }
           } catch (e) {
@@ -1527,25 +1667,28 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
 
     response.data.on('end', () => {
       if (!res.writableEnded) {
+        // Clean the full answer one more time
+        const finalAnswer = cleanResponse(fullAnswer);
+        
         // Send complete message to Windows app if not already sent
         if (clientId) {
           broadcastEvent({ 
             role: 'assistant',
             type: 'complete',
-            content: fullAnswer,
+            content: finalAnswer,
             isStreaming: false
           }, clientId);
         }
         
         res.write(`data: ${JSON.stringify({ 
           type: 'complete', 
-          content: fullAnswer,
+          content: finalAnswer,
           basedOn: {
-            experience: resumeData.experience?.totalYears,
-            role: resumeData.experience?.currentRole,
+            experience: actualResumeData.experience?.totalYears,
+            role: actualResumeData.experience?.currentRole,
             technologies: [
-              ...(resumeData.technologies?.languages || []),
-              ...(resumeData.technologies?.frameworks || [])
+              ...(actualResumeData.technologies?.languages || []),
+              ...(actualResumeData.technologies?.frameworks || [])
             ].slice(0, 5)
           }
         })}\n\n`);
@@ -1555,15 +1698,67 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
 
     response.data.on('error', (error) => {
       console.error('Stream error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        fullAnswerLength: fullAnswer.length
+      });
       if (!res.writableEnded) {
-        res.write(`data: ${JSON.stringify({ type: 'error', message: 'Stream error' })}\n\n`);
+        res.write(`data: ${JSON.stringify({ 
+          type: 'error', 
+          message: 'Stream error occurred: ' + error.message 
+        })}\n\n`);
         res.end();
       }
     });
 
+    // Add timeout handler
+    const timeoutId = setTimeout(() => {
+      if (!res.writableEnded) {
+        console.error('Response timeout - forcing completion');
+        console.error('Timeout details:', {
+          fullAnswerLength: fullAnswer.length,
+          hasAnswer: fullAnswer.length > 0
+        });
+        
+        if (fullAnswer.length > 0) {
+          // If we have partial answer, send it
+          res.write(`data: ${JSON.stringify({ 
+            type: 'complete', 
+            content: cleanResponse(fullAnswer)
+          })}\n\n`);
+        } else {
+          // No answer received
+          res.write(`data: ${JSON.stringify({ 
+            type: 'complete', 
+            content: 'I apologize, but I\'m having trouble generating a response right now. Please try again or rephrase your question.' 
+          })}\n\n`);
+        }
+        res.end();
+      }
+    }, 50000); // 50 second timeout
+    
+    // Clear timeout when response completes
+    response.data.on('end', () => {
+      clearTimeout(timeoutId);
+    });
+
   } catch (error) {
     console.error('Error in resume-aware chat:', error);
-    res.status(500).json({ error: 'Failed to generate response' });
+    
+    // Try to send error via SSE if headers already sent
+    if (res.headersSent) {
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ 
+          type: 'error', 
+          message: 'Failed to generate response. Please try again.' 
+        })}\n\n`);
+        res.end();
+      }
+    } else {
+      // Send regular error response
+      res.status(500).json({ error: 'Failed to generate response. Please try again.' });
+    }
   }
 });
 

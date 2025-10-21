@@ -908,6 +908,13 @@
           font-size: 14px;
         }
         
+        .method-btn .recommended-badge {
+          top: -8px;
+          right: -8px;
+          font-size: 10px;
+          padding: 3px 8px;
+        }
+        
         /* Username card mobile */
         .username-card {
           padding: 14px 12px;
@@ -1310,6 +1317,30 @@
         to {
           opacity: 0;
           transform: translateX(-50%) translateY(-20px);
+        }
+      }
+      
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.5;
+          transform: scale(1.2);
+        }
+      }
+      
+      .unsaved-indicator {
+        animation: subtlePulse 2s infinite !important;
+      }
+      
+      @keyframes subtlePulse {
+        0%, 100% {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        50% {
+          box-shadow: 0 2px 12px rgba(59, 130, 246, 0.4);
         }
       }
       
@@ -1929,6 +1960,28 @@
         font-weight: 600;
       }
       
+      .question-type-badge {
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-left: 8px;
+      }
+      
+      .question-type-badge.coding {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      }
+      
+      .question-type-badge.technical {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+      }
+      
       .question-difficulty {
         margin-left: auto;
         display: flex;
@@ -2009,6 +2062,58 @@
         color: #333;
         line-height: 1.7;
         margin: 0;
+        margin-bottom: 12px;
+      }
+      
+      .question-answer .answer-text {
+        font-size: 14px;
+        color: #333;
+        line-height: 1.7;
+        margin: 12px 0;
+        padding: 0;
+      }
+      
+      .question-answer .answer-text strong {
+        color: #10b981;
+        font-weight: 600;
+      }
+      
+      .question-answer pre {
+        background: #1e293b;
+        color: #e2e8f0;
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 12px 0;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      
+      .question-answer code {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+      }
+      
+      .question-answer pre code {
+        color: #e2e8f0;
+        background: none;
+        padding: 0;
+      }
+      
+      /* Syntax highlighting colors */
+      .question-answer pre code .keyword {
+        color: #c792ea;
+      }
+      
+      .question-answer pre code .string {
+        color: #c3e88d;
+      }
+      
+      .question-answer pre code .comment {
+        color: #697098;
+        font-style: italic;
       }
       
       /* Action Buttons */
@@ -2583,6 +2688,34 @@
         justify-content: center;
         gap: 8px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        position: relative;
+      }
+      
+      .method-btn .recommended-badge {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);
+        animation: badgePulse 2s ease-in-out infinite;
+      }
+      
+      @keyframes badgePulse {
+        0%, 100% {
+          transform: scale(1);
+          box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);
+        }
+        50% {
+          transform: scale(1.05);
+          box-shadow: 0 4px 12px rgba(34, 197, 94, 0.6);
+        }
       }
       
       .method-btn.active {
@@ -2591,6 +2724,20 @@
         border-color: transparent;
         box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
         transform: translateY(-2px);
+      }
+      
+      .method-btn.active .recommended-badge {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5);
+      }
+      
+      @keyframes badgePulse {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
       }
       
       .method-btn:hover:not(.active) {
@@ -2904,18 +3051,63 @@
             <!-- Resume Upload -->
             <div class="upload-card">
               <h3><span class="icon">📄</span> Resume</h3>
-              <div class="upload-zone" id="resume-upload-zone">
-                <input type="file" id="resume-file" accept=".pdf,.docx" />
-                <div class="upload-zone-content">
-                  <div class="upload-icon">📤</div>
-                  <p><strong>Click to upload or drag and drop</strong></p>
-                  <p class="file-types">Supported: PDF, DOCX (Max 5MB)</p>
+              
+              <!-- Input Method Toggle -->
+              <div class="input-method-toggle">
+                <button class="method-btn active" onclick="switchResumeInputMethod('upload')">
+                  📤 Upload File
+                </button>
+                <button class="method-btn" onclick="switchResumeInputMethod('paste')">
+                  📝 Paste Text
+                  <span class="recommended-badge">⭐ Recommended</span>
+                </button>
+              </div>
+              
+              <!-- Upload Option -->
+              <div id="resume-upload-option" class="input-option">
+                <div class="upload-zone" id="resume-upload-zone">
+                  <input type="file" id="resume-file" accept=".pdf,.docx" />
+                  <div class="upload-zone-content">
+                    <div class="upload-icon">📤</div>
+                    <p><strong>Click to upload or drag and drop</strong></p>
+                    <p class="file-types">Supported: PDF, DOCX (Max 5MB)</p>
+                  </div>
+                </div>
+                <div class="file-selected" id="resume-selected">
+                  <span>📄</span>
+                  <span id="resume-filename"></span>
+                  <button class="remove-file" onclick="removeResumeFile()">×</button>
                 </div>
               </div>
-              <div class="file-selected" id="resume-selected">
-                <span>📄</span>
-                <span id="resume-filename"></span>
-                <button class="remove-file" onclick="removeResumeFile()">×</button>
+              
+              <!-- Paste Text Option -->
+              <div id="resume-text-option" class="input-option" style="display: none;">
+                <div class="resume-text-container">
+                  <textarea 
+                    id="resume-text-input"
+                    oninput="handleResumeTextChange()"
+                    placeholder="Paste your resume text here...
+
+Example:
+John Doe
+Senior Software Engineer
+
+EXPERIENCE:
+- 5 years at Tech Corp as Full Stack Developer
+- Worked with React, Node.js, PostgreSQL
+- Led team of 3 developers
+
+SKILLS:
+JavaScript, Python, React, Node.js, AWS, Docker
+
+EDUCATION:
+BS Computer Science, University of XYZ"
+                    rows="15"></textarea>
+                  <div class="text-actions">
+                    <button class="action-btn" onclick="clearResumeText()">🗑️ Clear</button>
+                    <button class="action-btn primary" onclick="saveResumeText()">✅ Save Resume Text</button>
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -3164,6 +3356,7 @@ Team leadership experience preferred"></textarea>
               </button>
               <button id="paste-method-btn" class="method-btn" onclick="switchInputMethod('paste')">
                 📝 Paste Text
+                <span class="recommended-badge">⭐ Recommended</span>
               </button>
             </div>
             

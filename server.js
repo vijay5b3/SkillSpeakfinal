@@ -466,16 +466,37 @@ Return a JSON object with this structure:
     "skillGaps": ["gap1", "gap2"]
   },
   "questions": {
-    "basic": [{"question": "text", "reasoning": "why", "focusArea": "topic", "difficulty": 2}],
-    "advanced": [{"question": "text", "reasoning": "why", "focusArea": "topic", "difficulty": 4}],
-    "scenario": [{"question": "text", "reasoning": "why", "focusArea": "topic", "difficulty": 5}]
+    "basic": [{"question": "text", "reasoning": "why", "focusArea": "topic", "difficulty": 2, "type": "technical or coding"}],
+    "advanced": [{"question": "text", "reasoning": "why", "focusArea": "topic", "difficulty": 4, "type": "technical or coding"}],
+    "scenario": [{"question": "text", "reasoning": "why", "focusArea": "topic", "difficulty": 5, "type": "technical or coding"}]
   }
 }
 
 IMPORTANT: Generate EXACTLY 20 questions for each category (basic, advanced, scenario). Total 60 questions.
-- Basic: 20 fundamental questions (difficulty: 2)
-- Advanced: 20 in-depth technical questions (difficulty: 4)  
-- Scenario: 20 real-world problem-solving questions (difficulty: 5)
+
+QUESTION TYPE DISTRIBUTION - MUST FOLLOW:
+- Basic (20 questions): 50% Technical Concepts + 50% Coding Problems
+  * 10 Technical: Definitions, concepts, theory, best practices, system design basics
+  * 10 Coding: Write simple functions, basic algorithms, easy programming tasks
+  
+- Advanced (20 questions): 40% Technical + 60% Coding Problems
+  * 8 Technical: Architecture, optimization, complex concepts, trade-offs
+  * 12 Coding: Implement algorithms, data structures, complex logic, optimize code
+  
+- Scenario (20 questions): 30% Technical + 70% Coding Problems
+  * 6 Technical: System design, scalability, real-world architecture decisions
+  * 14 Coding: Solve real-world problems with code, build features, debug scenarios
+
+CODING QUESTIONS MUST:
+- Ask candidate to "Write code", "Implement", "Code a solution", "Create a function"
+- Be specific about input/output or requirements
+- Match the technologies in resume and job description
+- Include edge cases to consider
+
+TECHNICAL QUESTIONS MUST:
+- Ask about concepts, architecture, design patterns, best practices
+- Focus on "Explain", "What is", "How does", "When to use", "Compare"
+- Test understanding without requiring code
 
 Questions must be specific to the candidate's resume and job requirements. Return ONLY valid JSON.`;
 
@@ -578,7 +599,7 @@ Questions must be specific to the candidate's resume and job requirements. Retur
   }
 }
 
-// Interview Questions Generation Endpoint
+// Interview Questions Generation Endpoint (with SSE progress streaming)
 app.post('/api/generate-interview-questions',
   upload.fields([
     { name: 'resume', maxCount: 1 },
@@ -588,18 +609,22 @@ app.post('/api/generate-interview-questions',
     try {
       console.log('Received interview questions generation request');
 
-      // Extract resume text
-      if (!req.files || !req.files['resume']) {
-        return res.status(400).json({ error: 'Resume file is required' });
-      }
-
-      const resumeFile = req.files['resume'][0];
-      console.log('Resume file:', resumeFile.originalname, resumeFile.mimetype);
+      // Extract resume text - from file or text
+      let resumeText = '';
       
-      const resumeText = await extractTextFromFile(resumeFile);
+      if (req.files && req.files['resume']) {
+        const resumeFile = req.files['resume'][0];
+        console.log('Resume file:', resumeFile.originalname, resumeFile.mimetype);
+        resumeText = await extractTextFromFile(resumeFile);
+      } else if (req.body.resumeText) {
+        resumeText = req.body.resumeText;
+        console.log('Resume from text input:', resumeText.substring(0, 100));
+      } else {
+        return res.status(400).json({ error: 'Resume file or text is required' });
+      }
       
       if (!resumeText || resumeText.trim().length < 50) {
-        return res.status(400).json({ error: 'Resume file appears to be empty or too short' });
+        return res.status(400).json({ error: 'Resume appears to be empty or too short (minimum 50 characters)' });
       }
 
       // Extract job description text
@@ -627,34 +652,59 @@ app.post('/api/generate-interview-questions',
       console.log('Resume text length:', resumeText.length);
       console.log('Job description length:', jobDescriptionText.length);
 
+      // Set up SSE headers for streaming
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      // Send progress: Analyzing resume
+      res.write(`data: ${JSON.stringify({
+        type: 'progress',
+        stage: 'Analyzing resume and job description'
+      })}\n\n`);
+
       // Generate interview questions
       console.log('Calling Mistral 7B to generate questions...');
+      
+      // Send progress: Calling AI
+      res.write(`data: ${JSON.stringify({
+        type: 'progress',
+        stage: 'Generating questions with AI'
+      })}\n\n`);
+
       const questions = await generateInterviewQuestions(resumeText, jobDescriptionText);
 
+      // Send progress: Processing results
+      res.write(`data: ${JSON.stringify({
+        type: 'progress',
+        stage: 'Processing results'
+      })}\n\n`);
+
       console.log('Successfully generated questions');
-      res.json(questions);
+      
+      // Send completion with data
+      res.write(`data: ${JSON.stringify({
+        type: 'complete',
+        data: questions
+      })}\n\n`);
+
+      res.end();
 
     } catch (error) {
       console.error('Error in interview questions generation:', error);
       
-      if (error.message.includes('Invalid file type')) {
-        return res.status(400).json({ error: error.message });
-      }
+      // Send error event
+      res.write(`data: ${JSON.stringify({
+        type: 'error',
+        error: error.message || 'Failed to generate interview questions. Please try again.'
+      })}\n\n`);
       
-      if (error.response) {
-        return res.status(error.response.status).json({
-          error: error.response.data?.error?.message || 'API error occurred'
-        });
-      }
-      
-      res.status(500).json({
-        error: 'Failed to generate interview questions. Please try again.'
-      });
+      res.end();
     }
   }
 );
 
-// Generate answers for interview questions
+// Generate answers for interview questions (with resume context and SSE streaming)
 app.post('/api/generate-answers', async (req, res) => {
   try {
     const { questions, resumeText, jobDescriptionText } = req.body;
@@ -664,25 +714,138 @@ app.post('/api/generate-answers', async (req, res) => {
     }
 
     console.log('Generating answers for', questions.length, 'questions');
+    console.log(`Resume provided: ${resumeText ? 'Yes' : 'No'} (${resumeText?.length || 0} chars)`);
+    console.log(`Job Description provided: ${jobDescriptionText ? 'Yes' : 'No'} (${jobDescriptionText?.length || 0} chars)`);
+
+    // Set up SSE headers for streaming
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
     const answers = [];
     
-    // Generate answers in batches to avoid timeout
-    for (const q of questions) {
+    // Generate answers with progress tracking
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      
       try {
-        const systemPrompt = `You are an expert interviewer providing model answers for technical interview questions. 
-Generate a comprehensive, professional answer that demonstrates strong technical knowledge.
+        // Check if this is a coding question
+        const isCodingQuestion = q.type && (q.type.toLowerCase().includes('coding') || q.type.toLowerCase() === 'coding');
+        
+        // Build appropriate system prompt based on question type
+        let systemPrompt = '';
+        let userPrompt = '';
+        
+        if (isCodingQuestion) {
+          // For CODING questions - provide actual working code
+          systemPrompt = `You are an expert programmer helping a candidate prepare coding solutions for technical interviews.
 
-The answer should:
-- Be 3-5 sentences long
-- Show deep understanding of the concept
-- Include specific examples or use cases
-- Be suitable for the question's difficulty level
-- Sound professional and confident
+IMPORTANT: For coding questions, you MUST provide COMPLETE, WORKING CODE.
 
-Return only the answer text, no JSON, no formatting.`;
+Your response should follow this format:
 
-        const userPrompt = `Question: ${q.question}\n\nContext: ${q.reasoning || ''}\n\nProvide a model answer:`;
+**Code Solution:**
+
+\`\`\`[language]
+// Complete working code here
+// Include all necessary imports/dependencies
+// Add helpful comments
+// Make it production-ready
+\`\`\`
+
+**Explanation:**
+Brief 2-3 sentence explanation of how the code works and key concepts used.
+
+**Time & Space Complexity:**
+- Time: O(...)
+- Space: O(...)
+
+Use the programming language most relevant to the candidate's resume or job requirements.
+Make the code clean, efficient, and interview-ready.`;
+
+          userPrompt = `Question: ${q.question}\n\n`;
+          
+          if (resumeText && resumeText.trim()) {
+            // Extract primary programming languages from resume
+            const languages = ['Python', 'JavaScript', 'Java', 'C++', 'C#', 'Go', 'Ruby', 'TypeScript'];
+            const resumeLower = resumeText.toLowerCase();
+            const foundLanguages = languages.filter(lang => resumeLower.includes(lang.toLowerCase()));
+            
+            if (foundLanguages.length > 0) {
+              userPrompt += `Candidate knows: ${foundLanguages.join(', ')}\n`;
+              userPrompt += `Prefer using: ${foundLanguages[0]}\n\n`;
+            }
+          }
+          
+          if (jobDescriptionText && jobDescriptionText.trim()) {
+            userPrompt += `Job Requirements: ${jobDescriptionText.substring(0, 300)}\n\n`;
+          }
+          
+          userPrompt += `Provide a COMPLETE, WORKING code solution with explanation and complexity analysis.`;
+          
+        } else {
+          // For TECHNICAL questions - provide conceptual answers
+          systemPrompt = `You are helping a candidate prepare personalized, authentic answers for technical interview questions.`;
+          
+          if (resumeText && resumeText.trim()) {
+            systemPrompt += `\n\n=== CANDIDATE'S RESUME ===\n${resumeText}\n========================\n\n`;
+            systemPrompt += `CRITICAL INSTRUCTIONS - Read the resume carefully and follow these rules:
+
+1. USE ACTUAL DETAILS from the resume:
+   - Use REAL company names (e.g., "Infosys", "Tech Mahindra", NOT "[current company]" or "[previous company]")
+   - Use REAL project names from the resume
+   - Use REAL technologies and tools mentioned in the resume
+   - Use REAL time periods and experience years from the resume
+
+2. Structure your answer naturally:
+   - Start with a brief direct answer to the question (1-2 sentences)
+   - Follow with a specific example from the candidate's actual experience
+   - Include real metrics or outcomes if mentioned in the resume
+   - End with a brief reflection on what was learned or achieved
+
+3. NEVER use placeholders like:
+   - "[current company]" - use the actual company name
+   - "[previous company]" - use the actual company name  
+   - "[specific project]" - use the actual project name
+   - "approximately X years" - use exact years from resume
+
+4. If the question asks about something NOT in the resume:
+   - Start with: "While this specific topic isn't detailed in my resume, I have knowledge of..."
+   - Then provide a conceptual answer based on industry knowledge
+
+5. Keep the answer 4-6 sentences, professional, confident, and authentic.
+
+Return ONLY the answer text - no labels, no JSON, no extra formatting.`;
+          } else {
+            systemPrompt += `\n\nProvide a professional first-person answer that:
+- Uses "I" statements and sounds conversational
+- Shows deep understanding with specific examples
+- Is suitable for the question's difficulty level`;
+          }
+
+          userPrompt = `Question: ${q.question}`;
+          
+          if (q.reasoning) {
+            userPrompt += `\n\nWhy this question: ${q.reasoning}`;
+          }
+          
+          if (q.focusArea) {
+            userPrompt += `\n\nFocus Area: ${q.focusArea}`;
+          }
+          
+          if (jobDescriptionText && jobDescriptionText.trim()) {
+            userPrompt += `\n\nJob Requirements: ${jobDescriptionText.substring(0, 400)}`;
+          }
+          
+          userPrompt += `\n\nProvide a personalized, authentic answer using REAL details from the resume above:`;
+        }
+
+        // Send progress event
+        res.write(`data: ${JSON.stringify({
+          type: 'progress',
+          completed: i,
+          total: questions.length
+        })}\n\n`);
 
         const response = await axios.post(
           `${OPENROUTER_BASE_URL}/chat/completions`,
@@ -692,43 +855,90 @@ Return only the answer text, no JSON, no formatting.`;
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt }
             ],
-            max_tokens: 500,
-            temperature: 0.7
+            max_tokens: isCodingQuestion ? 1500 : 800, // More tokens for detailed resume-based answers
+            temperature: isCodingQuestion ? 0.3 : 0.7 // Lower temperature for more precise code
           },
           {
             headers: {
               'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
               'Content-Type': 'application/json'
             },
-            timeout: 30000
+            timeout: 45000 // Longer timeout for coding questions
           }
         );
 
         const answer = response.data.choices[0].message.content.trim();
         
-        answers.push({
+        const answerObj = {
           question: q.question,
           answer: answer,
           category: q.category || q.focusArea,
           reasoning: q.reasoning
-        });
+        };
+        
+        answers.push(answerObj);
+
+        // Send answer event
+        res.write(`data: ${JSON.stringify({
+          type: 'answer',
+          answer: answerObj,
+          index: i
+        })}\n\n`);
 
       } catch (error) {
         console.error('Error generating answer for question:', error.message);
-        answers.push({
+        const errorAnswer = {
           question: q.question,
           answer: 'Answer generation failed. Please try again.',
           category: q.category || q.focusArea,
           reasoning: q.reasoning
-        });
+        };
+        
+        answers.push(errorAnswer);
+
+        // Send error answer event
+        res.write(`data: ${JSON.stringify({
+          type: 'answer',
+          answer: errorAnswer,
+          index: i
+        })}\n\n`);
       }
     }
 
-    res.json({ answers });
+    // Send completion event
+    res.write(`data: ${JSON.stringify({
+      type: 'complete',
+      answers: answers
+    })}\n\n`);
+
+    res.end();
 
   } catch (error) {
     console.error('Error in answer generation:', error);
-    res.status(500).json({ error: 'Failed to generate answers' });
+    res.write(`data: ${JSON.stringify({
+      type: 'error',
+      error: 'Failed to generate answers'
+    })}\n\n`);
+    res.end();
+  }
+});
+
+// Extract text from uploaded resume file
+app.post('/api/extract-text', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    console.log('Extracting text from file:', req.file.originalname);
+
+    const text = await extractTextFromFile(req.file);
+    
+    res.json({ text });
+
+  } catch (error) {
+    console.error('Error extracting text:', error);
+    res.status(500).json({ error: 'Failed to extract text from file' });
   }
 });
 

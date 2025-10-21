@@ -821,7 +821,199 @@ document.addEventListener('click', (e) => {
 
 // File upload handling
 let resumeFile = null;
+let resumeText = null; // Store resume text
 let jdFile = null;
+let currentResumeInputMethod = 'upload'; // 'upload' or 'paste'
+
+// Switch between resume upload and paste methods
+function switchResumeInputMethod(method) {
+  console.log('switchResumeInputMethod called with method:', method);
+  
+  currentResumeInputMethod = method;
+  
+  const uploadOption = document.getElementById('resume-upload-option');
+  const textOption = document.getElementById('resume-text-option');
+  
+  console.log('Elements found:', {
+    uploadOption: !!uploadOption,
+    textOption: !!textOption,
+    uploadOptionDisplay: uploadOption ? uploadOption.style.display : 'N/A',
+    textOptionDisplay: textOption ? textOption.style.display : 'N/A'
+  });
+  
+  // Check if elements exist before trying to access them
+  if (!uploadOption || !textOption) {
+    console.error('Resume input option elements not found');
+    return;
+  }
+  
+  // Find the buttons within the Interview Questions Generator section
+  const interviewSection = document.getElementById('interview-generator');
+  if (!interviewSection) {
+    console.error('Interview generator section not found');
+    return;
+  }
+  
+  const methodToggle = interviewSection.querySelector('.input-method-toggle');
+  if (!methodToggle) {
+    console.error('Method toggle not found');
+    return;
+  }
+  
+  const uploadBtn = methodToggle.querySelector('.method-btn:first-child');
+  const pasteBtn = methodToggle.querySelector('.method-btn:last-child');
+  
+  console.log('Buttons found:', {
+    uploadBtn: !!uploadBtn,
+    pasteBtn: !!pasteBtn
+  });
+
+  // Be defensive: only touch .style or classList if the elements exist.
+  if (method === 'upload') {
+    console.log('About to set uploadOption.style.display to block', uploadOption);
+    if (uploadOption) {
+      try {
+        uploadOption.style.display = 'block';
+      } catch (e) {
+        console.error('Error setting uploadOption.style.display:', e, uploadOption);
+      }
+    } else {
+      console.warn('uploadOption is null - cannot set display to block');
+    }
+
+    console.log('About to set textOption.style.display to none', textOption);
+    if (textOption) {
+      try {
+        textOption.style.display = 'none';
+      } catch (e) {
+        console.error('Error setting textOption.style.display:', e, textOption);
+      }
+    } else {
+      console.warn('textOption is null - cannot set display to none');
+    }
+
+    if (uploadBtn) uploadBtn.classList.add('active');
+    if (pasteBtn) pasteBtn.classList.remove('active');
+  } else {
+    console.log('About to set uploadOption.style.display to none', uploadOption);
+    if (uploadOption) {
+      try {
+        uploadOption.style.display = 'none';
+      } catch (e) {
+        console.error('Error setting uploadOption.style.display:', e, uploadOption);
+      }
+    } else {
+      console.warn('uploadOption is null - cannot set display to none');
+    }
+
+    console.log('About to set textOption.style.display to block', textOption);
+    if (textOption) {
+      try {
+        textOption.style.display = 'block';
+      } catch (e) {
+        console.error('Error setting textOption.style.display:', e, textOption);
+      }
+    } else {
+      console.warn('textOption is null - cannot set display to block');
+    }
+
+    if (uploadBtn) uploadBtn.classList.remove('active');
+    if (pasteBtn) pasteBtn.classList.add('active');
+  }
+  
+  console.log('After toggle:', {
+    uploadOptionDisplay: uploadOption.style.display,
+    textOptionDisplay: textOption.style.display
+  });
+}
+
+// Clear resume text
+function clearResumeText() {
+  document.getElementById('resume-text-input').value = '';
+  resumeText = null;
+}
+
+// Save resume text
+function saveResumeText() {
+  const textArea = document.getElementById('resume-text-input');
+  const text = textArea.value.trim();
+  
+  if (!text) {
+    alert('⚠️ Please paste your resume text first');
+    return;
+  }
+  
+  if (text.length < 50) {
+    alert('⚠️ Resume text seems too short. Please provide more details.');
+    return;
+  }
+  
+  resumeText = text;
+  resumeFile = null; // Clear file if text is used
+  
+  // Update save button to show saved state
+  const saveBtn = event.target;
+  const originalText = saveBtn.textContent;
+  saveBtn.textContent = '✅ Saved!';
+  saveBtn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+  
+  // Reset button after 3 seconds
+  setTimeout(() => {
+    saveBtn.textContent = originalText;
+    saveBtn.style.background = '';
+  }, 3000);
+  
+  // Show success message
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.95) 0%, rgba(22, 163, 74, 0.95) 100%);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    font-weight: 600;
+    animation: slideDown 0.3s ease-out;
+  `;
+  notification.textContent = '✅ Resume text saved successfully! You can now generate questions.';
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.animation = 'slideUp 0.3s ease-out';
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
+// Handle resume text input changes
+function handleResumeTextChange() {
+  const textArea = document.getElementById('resume-text-input');
+  const saveBtn = document.querySelector('[onclick="saveResumeText()"]');
+  
+  if (!textArea || !saveBtn) return;
+  
+  const currentText = textArea.value.trim();
+  const hasUnsavedChanges = currentText && currentText !== resumeText;
+  
+  if (hasUnsavedChanges && currentText.length >= 50) {
+    // Add pulsing indicator to save button
+    if (!saveBtn.classList.contains('unsaved-indicator')) {
+      saveBtn.classList.add('unsaved-indicator');
+      saveBtn.innerHTML = '💾 Save Resume Text <span style="margin-left: 5px; animation: pulse 1.5s infinite;">●</span>';
+    }
+  } else if (!hasUnsavedChanges) {
+    // Remove indicator when text matches saved text
+    saveBtn.classList.remove('unsaved-indicator');
+    saveBtn.innerHTML = '✅ Save Resume Text';
+  }
+}
+
+// Make function globally accessible
+window.handleResumeTextChange = handleResumeTextChange;
 
 // Resume file upload
 const resumeInput = document.getElementById('resume-file');
@@ -929,8 +1121,10 @@ function validateFile(file, allowedExtensions, maxSizeMB) {
 // Remove file functions
 function removeResumeFile() {
   resumeFile = null;
+  resumeText = null;
   resumeInput.value = '';
   resumeSelected.classList.remove('show');
+  document.getElementById('resume-text-input').value = '';
 }
 
 function removeJDFile() {
@@ -943,26 +1137,55 @@ function removeJDFile() {
 let currentResults = null;
 
 async function generateQuestions() {
-  // Validate inputs
-  if (!resumeFile) {
-    alert('Please upload a resume');
+  // Check if user has unsaved resume text
+  const resumeTextArea = document.getElementById('resume-text-input');
+  const hasUnsavedResumeText = resumeTextArea && resumeTextArea.value.trim() && !resumeText;
+  
+  // Validate inputs - check for either file or text
+  if (!resumeFile && !resumeText) {
+    if (hasUnsavedResumeText) {
+      alert('⚠️ You have pasted resume text but haven\'t saved it!\n\nPlease click the "💾 Save Resume Text" button to save your resume before generating questions.');
+    } else {
+      alert('⚠️ Please upload a resume file or paste resume text');
+    }
     return;
   }
   
   const jdText = document.getElementById('job-description').value.trim();
   if (!jdText && !jdFile) {
-    alert('Please provide a job description (text or file)');
+    alert('⚠️ Please provide a job description (text or file)');
     return;
   }
   
+  console.log('Generating questions with:', {
+    hasResumeFile: !!resumeFile,
+    hasResumeText: !!resumeText,
+    resumeTextLength: resumeText ? resumeText.length : 0,
+    hasJDFile: !!jdFile,
+    hasJDText: !!jdText
+  });
+  
   // Show loading
   document.getElementById('upload-form').style.display = 'none';
-  document.getElementById('loading-state').classList.add('show');
+  const loadingState = document.getElementById('loading-state');
+  loadingState.classList.add('show');
   document.getElementById('results-container').classList.remove('show');
+  
+  // Update loading text to show progress
+  const loadingText = loadingState.querySelector('p');
+  const originalLoadingText = loadingText.textContent;
   
   // Prepare FormData
   const formData = new FormData();
-  formData.append('resume', resumeFile);
+  
+  // Add resume (file or text)
+  if (resumeFile) {
+    formData.append('resume', resumeFile);
+    console.log('Adding resume file:', resumeFile.name);
+  } else if (resumeText) {
+    formData.append('resumeText', resumeText);
+    console.log('Adding resume text, length:', resumeText.length);
+  }
   
   if (jdFile) {
     formData.append('jobDescription', jdFile);
@@ -980,18 +1203,70 @@ async function generateQuestions() {
       const error = await response.json();
       throw new Error(error.error || 'Failed to generate questions');
     }
+
+    // Check if response is SSE stream
+    const contentType = response.headers.get('content-type');
     
-    const data = await response.json();
-    currentResults = data;
-    
-    // Hide loading, show results
-    document.getElementById('loading-state').classList.remove('show');
-    displayResults(data);
+    if (contentType && contentType.includes('text/event-stream')) {
+      // Handle SSE streaming with progress
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalData = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.slice(6));
+              
+              if (eventData.type === 'progress') {
+                // Update loading text with progress
+                loadingText.textContent = `⏳ Generating questions... (${eventData.stage || eventData.message})`;
+              } else if (eventData.type === 'complete') {
+                finalData = eventData.data;
+              } else if (eventData.type === 'error') {
+                throw new Error(eventData.error);
+              }
+            } catch (e) {
+              console.error('Error parsing SSE event:', e);
+            }
+          }
+        }
+      }
+
+      if (finalData) {
+        currentResults = finalData;
+        loadingState.classList.remove('show');
+        loadingText.textContent = originalLoadingText;
+        displayResults(finalData);
+      } else {
+        throw new Error('No data received from server');
+      }
+    } else {
+      // Handle regular JSON response (backward compatibility)
+      const data = await response.json();
+      currentResults = data;
+      
+      // Hide loading, show results
+      loadingState.classList.remove('show');
+      loadingText.textContent = originalLoadingText;
+      displayResults(data);
+    }
     
   } catch (error) {
     console.error('Error:', error);
     alert(`Error: ${error.message}`);
-    document.getElementById('loading-state').classList.remove('show');
+    loadingState.classList.remove('show');
+    loadingText.textContent = originalLoadingText;
     document.getElementById('upload-form').style.display = 'block';
   }
 }
@@ -1050,6 +1325,30 @@ function displayResults(data) {
     }
   }
   
+  // Calculate technical vs coding question counts
+  const allQuestionsForCount = [
+    ...data.questions.basic,
+    ...data.questions.advanced,
+    ...data.questions.scenario
+  ];
+  
+  const codingCount = allQuestionsForCount.filter(q => 
+    q.type && (q.type.toLowerCase().includes('coding') || q.type.toLowerCase() === 'coding')
+  ).length;
+  const technicalCount = allQuestionsForCount.length - codingCount;
+  
+  // Add question type summary
+  summaryHTML += `
+    <div class="analysis-item">
+      <h4>📚 Technical Questions</h4>
+      <p style="font-size: 24px; font-weight: 700; color: #3b82f6;">${technicalCount}</p>
+    </div>
+    <div class="analysis-item">
+      <h4>💻 Coding Questions</h4>
+      <p style="font-size: 24px; font-weight: 700; color: #10b981;">${codingCount}</p>
+    </div>
+  `;
+  
   analysisSummary.innerHTML = summaryHTML;
   
   // Update question counts
@@ -1091,11 +1390,18 @@ function renderQuestions(category, questions) {
       difficultyStars += `<span class="star ${i <= filledStars ? '' : 'empty'}">★</span>`;
     }
     
+    // Determine question type badge
+    const questionType = q.type || 'technical';
+    const typeBadge = questionType.toLowerCase().includes('coding') || questionType.toLowerCase() === 'coding'
+      ? '<span class="question-type-badge coding">💻 Coding</span>'
+      : '<span class="question-type-badge technical">📚 Technical</span>';
+    
     return `
       <div class="question-card">
         <div class="question-header">
           <div class="question-number">${index + 1}</div>
           <div class="question-category">${category.charAt(0).toUpperCase() + category.slice(1)}</div>
+          ${typeBadge}
           <div class="question-difficulty" title="Difficulty: ${filledStars}/5">
             ${difficultyStars}
           </div>
@@ -1269,17 +1575,45 @@ async function generateAnswers() {
 
   // Show loading
   document.getElementById('answers-loading').classList.add('show');
-  document.getElementById('generate-answers-btn').disabled = true;
-  document.getElementById('generate-answers-btn').textContent = '⏳ Generating...';
+  const generateBtn = document.getElementById('generate-answers-btn');
+  generateBtn.disabled = true;
+
+  // Store resume data for answer generation
+  let resumeData = resumeText; // From text input
+  if (!resumeData && resumeFile) {
+    // If file was used, we need to extract text from it
+    const formData = new FormData();
+    formData.append('resume', resumeFile);
+    try {
+      const extractResponse = await fetch('/api/extract-text', {
+        method: 'POST',
+        body: formData
+      });
+      if (extractResponse.ok) {
+        const extractData = await extractResponse.json();
+        resumeData = extractData.text;
+      }
+    } catch (error) {
+      console.error('Error extracting resume text:', error);
+    }
+  }
 
   try {
+    let completedCount = 0;
+    const totalCount = allQuestions.length;
+    
+    // Update button with progress
+    generateBtn.textContent = `⏳ Generating (0/${totalCount})...`;
+
     const response = await fetch('/api/generate-answers', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        questions: allQuestions
+        questions: allQuestions,
+        resumeText: resumeData || '',
+        jobDescriptionText: document.getElementById('job-description')?.value || ''
       })
     });
 
@@ -1287,18 +1621,49 @@ async function generateAnswers() {
       throw new Error('Failed to generate answers');
     }
 
-    const data = await response.json();
-    generatedAnswers = data.answers;
+    // Read the stream for progress updates
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const answers = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'progress') {
+              completedCount = data.completed;
+              generateBtn.textContent = `⏳ Generating (${completedCount}/${totalCount})...`;
+            } else if (data.type === 'answer') {
+              answers.push(data.answer);
+            } else if (data.type === 'complete') {
+              generatedAnswers = answers;
+            }
+          } catch (e) {
+            console.error('Error parsing SSE:', e);
+          }
+        }
+      }
+    }
 
     // Hide loading
     document.getElementById('answers-loading').classList.remove('show');
     
     // Display answers in the questions
-    displayAnswersInQuestions(data.answers);
+    displayAnswersInQuestions(generatedAnswers);
 
     // Show download button
     document.getElementById('download-qa-btn').style.display = 'block';
-    document.getElementById('generate-answers-btn').textContent = '✅ Answers Generated';
+    generateBtn.textContent = '✅ Answers Generated';
+    generateBtn.disabled = false;
     
     alert('✅ Answers generated successfully! You can now download the Q&A document.');
 
@@ -1306,7 +1671,7 @@ async function generateAnswers() {
     console.error('Error generating answers:', error);
     alert('❌ Failed to generate answers. Please try again.');
     document.getElementById('answers-loading').classList.remove('show');
-    document.getElementById('generate-answers-btn').disabled = false;
+    generateBtn.disabled = false;
     document.getElementById('generate-answers-btn').textContent = '💡 Generate Answers';
   }
 }
@@ -1325,10 +1690,67 @@ function displayAnswersInQuestions(answers) {
         allCards[index].appendChild(answerDiv);
       }
       
-      answerDiv.innerHTML = `
-        <strong>💡 Model Answer</strong>
-        <p>${qa.answer}</p>
-      `;
+      // Create the answer content
+      const answerLabel = document.createElement('strong');
+      answerLabel.textContent = '💡 Model Answer';
+      
+      // Clear existing content
+      answerDiv.innerHTML = '';
+      answerDiv.appendChild(answerLabel);
+      
+      // Process the answer text
+      let formattedAnswer = qa.answer;
+      
+      // Check if answer contains code blocks
+      if (formattedAnswer.includes('```')) {
+        // Split by code blocks
+        const parts = formattedAnswer.split(/(```[\w]*\n[\s\S]*?```)/g);
+        
+        parts.forEach(part => {
+          if (part.startsWith('```')) {
+            // This is a code block
+            const match = part.match(/```(\w*)\n([\s\S]*?)```/);
+            if (match) {
+              const language = match[1] || 'javascript';
+              const code = match[2].trim();
+              
+              // Create pre and code elements
+              const pre = document.createElement('pre');
+              const codeEl = document.createElement('code');
+              codeEl.className = `language-${language}`;
+              codeEl.textContent = code; // Use textContent to preserve formatting
+              pre.appendChild(codeEl);
+              answerDiv.appendChild(pre);
+            }
+          } else if (part.trim()) {
+            // This is regular text
+            const textDiv = document.createElement('div');
+            textDiv.className = 'answer-text';
+            
+            // Replace **bold** with <strong>
+            let htmlText = part.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Replace line breaks with <br>
+            htmlText = htmlText.replace(/\n/g, '<br>');
+            
+            textDiv.innerHTML = htmlText;
+            answerDiv.appendChild(textDiv);
+          }
+        });
+      } else {
+        // No code blocks, just format as regular text
+        const textDiv = document.createElement('div');
+        textDiv.className = 'answer-text';
+        
+        // Replace **bold** with <strong>
+        let htmlText = formattedAnswer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Replace line breaks with <br>
+        htmlText = htmlText.replace(/\n/g, '<br>');
+        
+        textDiv.innerHTML = htmlText;
+        answerDiv.appendChild(textDiv);
+      }
     }
   });
 }
@@ -1700,6 +2122,9 @@ window.removeJDFile = removeJDFile;
 window.generateQuestions = generateQuestions;
 window.generateAnswers = generateAnswers;
 window.downloadQuestionsAndAnswers = downloadQuestionsAndAnswers;
+window.switchResumeInputMethod = switchResumeInputMethod;
+window.clearResumeText = clearResumeText;
+window.saveResumeText = saveResumeText;
 
 // ============================================
 // RESUME-AWARE INTERVIEW PRACTICE (STANDALONE)

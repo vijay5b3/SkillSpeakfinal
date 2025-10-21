@@ -1680,7 +1680,6 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
       if (!text) return '';
       
       // Remove special tokens like <s>, </s>, [INST], [/INST], [OUT], [/OUT]
-      // Note: Do NOT trim() here as it removes spaces between chunks
       let cleaned = text
         .replace(/<s>/g, '')
         .replace(/<\/s>/g, '')
@@ -1689,9 +1688,33 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
         .replace(/\[OUT\]/g, '')
         .replace(/\[\/OUT\]/g, '')
         .replace(/<\|im_start\|>/g, '')
-        .replace(/<\|im_end\|>/g, '');
+        .replace(/<\|im_end\|>/g, '')
+        .replace(/\[ASSISTANT\]/gi, ''); // Remove [ASSISTANT] tags
       
       return cleaned;
+    };
+    
+    // Function to fix garbled text and normalize spacing
+    const normalizeText = (text) => {
+      if (!text) return '';
+      
+      // Fix common issues in streaming responses
+      let normalized = text
+        // Remove multiple spaces
+        .replace(/\s+/g, ' ')
+        // Fix space before punctuation
+        .replace(/\s+([.,!?;:])/g, '$1')
+        // Ensure space after punctuation
+        .replace(/([.,!?;:])([A-Z])/g, '$1 $2')
+        // Fix broken words (e.g., "Ex tract" -> "Extract")
+        .replace(/\b(\w)\s+(\w{1,3})\b/g, (match, p1, p2) => {
+          // Only merge if second part is very short (likely broken)
+          if (p2.length <= 2) return p1 + p2;
+          return match;
+        })
+        .trim();
+      
+      return normalized;
     };
 
     response.data.on('data', (chunk) => {
@@ -1702,8 +1725,9 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
           const data = line.slice(6);
           
           if (data === '[DONE]') {
-            // Clean the full answer one more time to ensure all tokens are removed
-            const finalAnswer = cleanResponse(fullAnswer);
+            // Clean and normalize the full answer
+            let finalAnswer = cleanResponse(fullAnswer);
+            finalAnswer = normalizeText(finalAnswer);
             
             // Send complete message to Windows app
             if (clientId) {
@@ -1770,8 +1794,9 @@ Answer style: ${mode === 'detailed' ? 'Provide comprehensive, in-depth answers w
 
     response.data.on('end', () => {
       if (!res.writableEnded) {
-        // Clean the full answer one more time
-        const finalAnswer = cleanResponse(fullAnswer);
+        // Clean and normalize the full answer
+        let finalAnswer = cleanResponse(fullAnswer);
+        finalAnswer = normalizeText(finalAnswer);
         
         // Send complete message to Windows app if not already sent
         if (clientId) {

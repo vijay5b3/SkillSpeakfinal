@@ -1701,6 +1701,12 @@ function displayAnswersInQuestions(answers) {
       // Process the answer text
       let formattedAnswer = qa.answer;
       
+      // CRITICAL: Remove ALL strikethrough formatting before display
+      formattedAnswer = formattedAnswer
+        .replace(/~~(.+?)~~/gs, '$1')  // Remove ~~strikethrough~~
+        .replace(/~~/g, '')             // Remove any remaining tildes
+        .replace(/_{2,}(.+?)_{2,}/g, '$1'); // Remove __underline__
+      
       // Check if answer contains code blocks
       if (formattedAnswer.includes('```')) {
         // Split by code blocks
@@ -1781,16 +1787,30 @@ function downloadQuestionsAndAnswers() {
     return false;
   };
   
-  // Helper function to wrap text
-  const addWrappedText = (text, x, y, maxWidth, fontSize, color) => {
+  // Helper function to wrap text with better spacing
+  const addWrappedText = (text, x, y, maxWidth, fontSize, color, lineHeight = null) => {
+    if (!text) return 0;
+    
     doc.setFontSize(fontSize);
     if (color) doc.setTextColor(color[0], color[1], color[2]);
-    const lines = doc.splitTextToSize(text, maxWidth);
+    
+    // Calculate line height based on font size if not provided
+    const effectiveLineHeight = lineHeight || (fontSize * 0.5);
+    
+    // Clean text and split into lines
+    const cleanText = text.replace(/\s+/g, ' ').trim();
+    const lines = doc.splitTextToSize(cleanText, maxWidth);
+    
+    let currentY = y;
     lines.forEach((line, index) => {
-      checkPageBreak(7);
-      doc.text(line, x, y + (index * 7));
+      if (checkPageBreak(effectiveLineHeight + 5)) {
+        currentY = 20; // Reset to top of new page
+      }
+      doc.text(line, x, currentY);
+      currentY += effectiveLineHeight;
     });
-    return lines.length * 7;
+    
+    return lines.length * effectiveLineHeight;
   };
   
   // Title with gradient effect (using colored rectangle)
@@ -1828,12 +1848,14 @@ function downloadQuestionsAndAnswers() {
       yPos += 6;
     }
     if (currentResults.analysis.matchingSkills && currentResults.analysis.matchingSkills.length > 0) {
-      yPos += addWrappedText(`Matching Skills: ${currentResults.analysis.matchingSkills.join(', ')}`, margin, yPos, maxWidth, 10, [60, 60, 60]);
+      const skillsHeight = addWrappedText(`Matching Skills: ${currentResults.analysis.matchingSkills.join(', ')}`, margin, yPos, maxWidth, 10, [60, 60, 60], 6);
+      yPos += skillsHeight + 3;
     }
     if (currentResults.analysis.skillGaps && currentResults.analysis.skillGaps.length > 0) {
-      yPos += addWrappedText(`Skill Gaps: ${currentResults.analysis.skillGaps.join(', ')}`, margin, yPos, maxWidth, 10, [60, 60, 60]);
+      const gapsHeight = addWrappedText(`Skill Gaps: ${currentResults.analysis.skillGaps.join(', ')}`, margin, yPos, maxWidth, 10, [60, 60, 60], 6);
+      yPos += gapsHeight + 3;
     }
-    yPos += 10;
+    yPos += 8;
   }
   
   // Add questions and answers by category
@@ -1885,33 +1907,44 @@ function downloadQuestionsAndAnswers() {
       doc.setTextColor(40, 40, 40);
       doc.setFontSize(10);
       doc.setFont(undefined, 'bold');
-      yPos += addWrappedText(q.question, margin, yPos, maxWidth, 10, [40, 40, 40]);
-      yPos += 3;
+      const questionHeight = addWrappedText(q.question, margin, yPos, maxWidth, 10, [40, 40, 40], 6);
+      yPos += questionHeight + 4;
       
       // Reasoning
       if (q.reasoning) {
         doc.setFontSize(9);
         doc.setFont(undefined, 'italic');
         doc.setTextColor(100, 100, 100);
-        yPos += addWrappedText(`Why: ${q.reasoning}`, margin, yPos, maxWidth, 9, [100, 100, 100]);
-        yPos += 3;
+        const reasoningHeight = addWrappedText(`Why: ${q.reasoning}`, margin, yPos, maxWidth, 9, [100, 100, 100], 5.5);
+        yPos += reasoningHeight + 4;
       }
 
       // Answer
       if (answer && answer.answer) {
-        checkPageBreak(15);
+        checkPageBreak(20);
         doc.setFillColor(240, 253, 244); // Light green background
         doc.rect(margin, yPos, maxWidth, 6, 'F');
         doc.setFontSize(9);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(22, 163, 74);
         doc.text('MODEL ANSWER', margin + 2, yPos + 4);
-        yPos += 8;
+        yPos += 9;
         
         doc.setFontSize(9);
         doc.setFont(undefined, 'normal');
         doc.setTextColor(40, 40, 40);
-        yPos += addWrappedText(answer.answer, margin, yPos, maxWidth, 9, [40, 40, 40]);
+        
+        // Handle multi-paragraph answers better - remove ALL formatting artifacts
+        const answerText = answer.answer
+          .replace(/\*\*/g, '') // Remove markdown bold
+          .replace(/~~(.+?)~~/gs, '$1') // Remove strikethrough with content
+          .replace(/~~/g, '') // Remove any remaining tildes
+          .replace(/_{2,}(.+?)_{2,}/g, '$1') // Remove underline
+          .replace(/_{2,}/g, '') // Remove remaining underscores
+          .trim();
+        
+        const answerHeight = addWrappedText(answerText, margin + 2, yPos, maxWidth - 4, 9, [40, 40, 40], 5.5);
+        yPos += answerHeight + 2;
       }
       
       // Focus area

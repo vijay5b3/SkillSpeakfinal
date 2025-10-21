@@ -594,6 +594,21 @@ Questions must be specific to the candidate's resume and job requirements. Retur
         statusText: error.response.statusText,
         data: error.response.data
       });
+      
+      // Handle specific error codes
+      if (error.response.status === 402) {
+        const creditError = new Error('API_CREDITS_EXHAUSTED');
+        creditError.status = 402;
+        creditError.userMessage = '⚠️ OpenRouter API credits exhausted. Please add credits to your account at https://openrouter.ai/credits';
+        throw creditError;
+      }
+      
+      if (error.response.status === 429) {
+        const rateLimitError = new Error('RATE_LIMIT_EXCEEDED');
+        rateLimitError.status = 429;
+        rateLimitError.userMessage = '⚠️ Rate limit exceeded. Please wait a moment and try again.';
+        throw rateLimitError;
+      }
     }
     throw error;
   }
@@ -693,10 +708,22 @@ app.post('/api/generate-interview-questions',
     } catch (error) {
       console.error('Error in interview questions generation:', error);
       
+      // Handle custom error messages
+      let errorMessage = 'Failed to generate interview questions. Please try again.';
+      if (error.userMessage) {
+        errorMessage = error.userMessage;
+      } else if (error.message === 'API_CREDITS_EXHAUSTED') {
+        errorMessage = '⚠️ OpenRouter API credits exhausted. Please add credits at https://openrouter.ai/credits';
+      } else if (error.message === 'RATE_LIMIT_EXCEEDED') {
+        errorMessage = '⚠️ Rate limit exceeded. Please wait a moment and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       // Send error event
       res.write(`data: ${JSON.stringify({
         type: 'error',
-        error: error.message || 'Failed to generate interview questions. Please try again.'
+        error: errorMessage
       })}\n\n`);
       
       res.end();
@@ -754,11 +781,17 @@ Your response should follow this format:
 \`\`\`
 
 **Explanation:**
-Brief 2-3 sentence explanation of how the code works and key concepts used.
+Brief 2-3 sentence explanation of how the code works and key concepts used. Use plain text - NO strikethrough formatting (~~text~~) allowed.
 
 **Time & Space Complexity:**
 - Time: O(...)
 - Space: O(...)
+
+FORMATTING RULES:
+- Use code blocks ONLY for actual code
+- Explanation and complexity sections: plain text ONLY
+- ABSOLUTELY NO tildes (~) or strikethrough formatting
+- Keep explanations clean and simple
 
 Use the programming language most relevant to the candidate's resume or job requirements.
 Make the code clean, efficient, and interview-ready.`;
@@ -789,40 +822,60 @@ Make the code clean, efficient, and interview-ready.`;
           
           if (resumeText && resumeText.trim()) {
             systemPrompt += `\n\n=== CANDIDATE'S RESUME ===\n${resumeText}\n========================\n\n`;
-            systemPrompt += `CRITICAL INSTRUCTIONS - Read the resume carefully and follow these rules:
+            systemPrompt += `CRITICAL INSTRUCTIONS - Read the resume carefully and follow these rules EXACTLY:
 
-1. USE ACTUAL DETAILS from the resume:
-   - Use REAL company names (e.g., "Infosys", "Tech Mahindra", NOT "[current company]" or "[previous company]")
-   - Use REAL project names from the resume
-   - Use REAL technologies and tools mentioned in the resume
-   - Use REAL time periods and experience years from the resume
+1. ALWAYS USE ACTUAL DETAILS from the resume:
+   - Extract and use REAL company names from resume (e.g., "TCS", "Infosys", "Tech Mahindra")
+   - Extract and use REAL project names mentioned in resume
+   - Extract and use REAL technologies, tools, frameworks mentioned in resume
+   - Use EXACT experience years from resume (e.g., "5 years", not "several years")
+   - DO NOT fabricate or assume any information not in the resume
 
-2. Structure your answer naturally:
-   - Start with a brief direct answer to the question (1-2 sentences)
-   - Follow with a specific example from the candidate's actual experience
-   - Include real metrics or outcomes if mentioned in the resume
-   - End with a brief reflection on what was learned or achieved
+2. ANSWER STRUCTURE (follow this template):
+   Sentence 1-2: Direct, concise answer to the core question
+   Sentence 3-4: Real example from resume using actual project/company names
+   Sentence 5-6: Specific outcome, metric, or learning from that experience
+   
+   Example structure:
+   "[Technology] is [definition/explanation]. At [REAL COMPANY NAME], I worked with [REAL TECHNOLOGY] on the [REAL PROJECT NAME] where we [specific action]. This resulted in [real metric/outcome from resume]. The experience taught me [specific learning]."
 
-3. NEVER use placeholders like:
-   - "[current company]" - use the actual company name
-   - "[previous company]" - use the actual company name  
-   - "[specific project]" - use the actual project name
-   - "approximately X years" - use exact years from resume
+3. FORBIDDEN PLACEHOLDERS - NEVER use:
+   ❌ "[current company]" or "[previous company]"
+   ❌ "[specific project]" or "[project name]"
+   ❌ "[X years]" or "approximately X years"
+   ❌ "In one of my projects..." (be specific!)
+   ❌ "At my current company..." (use actual name!)
+   ✅ Instead, extract actual names from resume
 
-4. If the question asks about something NOT in the resume:
-   - Start with: "While this specific topic isn't detailed in my resume, I have knowledge of..."
-   - Then provide a conceptual answer based on industry knowledge
+4. If question is NOT in resume scope:
+   - First sentence: "While my resume doesn't detail this specifically, I understand [concept]..."
+   - Then provide general technical answer based on industry knowledge
+   - Keep it conceptual and honest
 
-5. Keep the answer 4-6 sentences, professional, confident, and authentic.
+5. ANSWER LENGTH & STYLE:
+   - Exactly 4-6 sentences
+   - Professional, confident, first-person voice
+   - Natural conversational tone (as if speaking to interviewer)
+   - No jargon unless question asks for technical depth
 
-6. FORMATTING RULES:
-   - Do NOT use strikethrough formatting (~~text~~)
-   - Do NOT use double tildes or any strikethrough markdown
-   - Use simple, clean text with proper paragraphs
-   - Use **bold** for emphasis only when necessary
-   - Keep formatting minimal and professional
+6. FORMATTING (CRITICAL - FOLLOW EXACTLY):
+   - Plain text only - simple, clean sentences
+   - ABSOLUTELY NO strikethrough formatting (~~text~~) - this is forbidden
+   - ABSOLUTELY NO tildes (~) anywhere in the answer
+   - NO code blocks unless coding question
+   - NO bullet points or numbered lists in answer text
+   - Use **bold** sparingly for emphasis only
+   - Write naturally as if speaking to an interviewer
 
-Return ONLY the answer text - no labels, no JSON, no extra formatting, no strikethrough text.`;
+7. QUALITY CHECKLIST before submitting answer:
+   ✓ Contains at least one REAL company/project name from resume?
+   ✓ Uses specific technologies mentioned in resume?
+   ✓ Includes concrete metric or outcome?
+   ✓ Sounds authentic and personalized (not generic)?
+   ✓ 4-6 sentences in length?
+   ✓ No placeholder text?
+
+Return ONLY the answer text - no labels like "Answer:", no JSON, no extra formatting.`;
           } else {
             systemPrompt += `\n\nProvide a professional first-person answer that:
 - Uses "I" statements and sounds conversational
@@ -871,8 +924,9 @@ Return ONLY the answer text - no labels, no JSON, no extra formatting, no strike
                   { role: 'system', content: systemPrompt },
                   { role: 'user', content: userPrompt }
                 ],
-                max_tokens: isCodingQuestion ? 1500 : 800,
-                temperature: isCodingQuestion ? 0.3 : 0.7
+                max_tokens: isCodingQuestion ? 1500 : 600,
+                temperature: isCodingQuestion ? 0.3 : 0.75,
+                top_p: 0.9
               },
               {
                 headers: {
@@ -885,23 +939,72 @@ Return ONLY the answer text - no labels, no JSON, no extra formatting, no strike
 
             answer = response.data.choices[0].message.content.trim();
             
-            // Validate answer is not empty
+            // Enhanced validation for answer quality
+            const hasPlaceholder = answer.includes('[current company]') || 
+                                   answer.includes('[previous company]') || 
+                                   answer.includes('[specific project]') ||
+                                   answer.includes('[project name]');
+            
+            const isGeneric = !isCodingQuestion && resumeText && 
+                             !answer.match(/TCS|Infosys|Tech Mahindra|Wipro|HCL|Accenture/i) &&
+                             answer.length < 150;
+            
             if (!answer || answer.length < 20) {
-              console.warn(`Answer too short for question ${i + 1}, retrying...`);
+              console.warn(`Answer too short for question ${i + 1} (${answer.length} chars), retrying...`);
               answer = '';
               retryCount++;
-              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+              await new Promise(resolve => setTimeout(resolve, 1000));
               continue;
             }
             
-            // Remove any strikethrough formatting
-            answer = answer.replace(/~~(.+?)~~/g, '$1');
+            if (hasPlaceholder) {
+              console.warn(`Answer ${i + 1} contains placeholders, retrying...`);
+              answer = '';
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              continue;
+            }
             
-            console.log(`✓ Answer ${i + 1} generated successfully (${answer.length} chars)`);
+            if (isGeneric && retryCount === 0) {
+              console.warn(`Answer ${i + 1} seems too generic (no company names), retrying...`);
+              answer = '';
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              continue;
+            }
+            
+            // Clean up formatting - remove all strikethrough variations
+            answer = answer
+              .replace(/~~(.+?)~~/gs, '$1') // Remove ~~strikethrough~~ (with global + multiline)
+              .replace(/~~/g, '') // Remove any remaining tildes
+              .replace(/\*\*\*(.+?)\*\*\*/g, '**$1**') // Fix triple bold
+              .replace(/\n{3,}/g, '\n\n') // Limit consecutive newlines
+              .replace(/_{2,}/g, '') // Remove underline formatting (__text__)
+              .trim();
+            
+            console.log(`✓ Answer ${i + 1} generated successfully (${answer.length} chars, attempt ${retryCount + 1})`);
             break;
             
           } catch (apiError) {
             console.error(`Retry ${retryCount + 1} failed for question ${i + 1}:`, apiError.message);
+            
+            // Check for payment/credit issues
+            if (apiError.response?.status === 402) {
+              console.error('❌ API Credits Exhausted - Status 402');
+              res.write(`data: ${JSON.stringify({
+                type: 'error',
+                message: '⚠️ API credits exhausted. Please check your OpenRouter account balance and add credits to continue. Visit: https://openrouter.ai/credits'
+              })}\n\n`);
+              res.end();
+              return;
+            }
+            
+            // Check for rate limiting
+            if (apiError.response?.status === 429) {
+              console.error('⚠️ Rate limit hit - Status 429');
+              await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds for rate limit
+            }
+            
             retryCount++;
             if (retryCount <= maxRetries) {
               await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
